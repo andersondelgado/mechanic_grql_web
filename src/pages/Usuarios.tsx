@@ -31,11 +31,12 @@ export default function Usuarios() {
     );
   }
 
-  const filteredData = data?.filter((item: any) => {
+  const list = Array.isArray(data) ? data : [];
+  const filteredData = list.filter((item: any) => {
     return Object.values(item).some(
       (val) => val && String(val).toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }) ?? [];
+  });
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto p-4 lg:p-8">

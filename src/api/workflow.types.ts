@@ -17,6 +17,7 @@ export interface WorkflowAction {
 
 /** Parámetros de consulta para acciones de tipo query */
 export interface WorkflowQuery {
+  _inverse_fk?: boolean;
   pagination?: {
     page: number;
     size: number;
@@ -26,6 +27,7 @@ export interface WorkflowQuery {
   extraFilter?: Record<string, unknown>;
   avanzedFilter?: Record<string, unknown>;
   order?: Record<string, unknown>;
+  [key: string]: any;
 }
 
 /** Paso dentro de un workflow */
@@ -71,9 +73,15 @@ export interface WorkflowResponse<T = any> {
 export function extractData<T = any>(response: any): T | null {
   if (!response) return null;
 
+  if (Array.isArray(response)) return response as T;
+
   // 1. Patrón original Lusiana (gRQL standard request/flows)
   const standardData = response?.request?.flows?.[0]?.steps?.[0]?.actions?.[0]?.result?.data;
-  if (standardData !== undefined) return standardData as T;
+  if (standardData !== undefined) {
+    if (Array.isArray(standardData)) return standardData as T;
+    if (standardData?.content && Array.isArray(standardData.content)) return standardData.content as T;
+    return standardData as T;
+  }
 
   // 2. Patrón de respuesta directa de la Lambda (ej: { "GestionTallerProd_clients": { paginate: { content: [...] } } })
   const keys = Object.keys(response);
@@ -90,9 +98,15 @@ export function extractData<T = any>(response: any): T | null {
       if (Array.isArray(tableData.content)) {
         return tableData.content as T;
       }
+
+      if (Array.isArray(tableData)) {
+        return tableData as T;
+      }
       
-      // Si es un objeto único (ej: respuesta de una mutación create/update)
-      return tableData as T;
+      // Si es un objeto único válido (ej: respuesta de una mutación create/update con id)
+      if (tableData.id || tableData.success) {
+        return tableData as T;
+      }
     }
   }
 
@@ -123,6 +137,20 @@ export function buildQueryRequest(
   actionName: string,
   query?: WorkflowQuery
 ): WorkflowRequest {
+  const existingArrayFilter = query?.arrayFilter || [];
+  const hasInverseFk = existingArrayFilter.some((f: any) => f?.field === '_inverse_fk');
+  const arrayFilter = hasInverseFk
+    ? existingArrayFilter
+    : [{ field: '_inverse_fk', value: true }, ...existingArrayFilter];
+
+  const mergedQuery: WorkflowQuery = {
+    ...(query ?? {}),
+    arrayFilter,
+  };
+  if ('_inverse_fk' in mergedQuery) {
+    delete (mergedQuery as any)._inverse_fk;
+  }
+
   return {
     request: {
       flows: [
@@ -139,7 +167,7 @@ export function buildQueryRequest(
                   name: actionName,
                   type: 'api',
                   action: 'query',
-                  params: { query: query ?? {} },
+                  params: { query: mergedQuery },
                 },
               ],
             },

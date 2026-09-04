@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { createEntity, updateEntity } from "../../api/client";
+import { useGrqlList } from "../../hooks/use-grql";
 
 interface ManoObraModalProps {
   isOpen: boolean;
@@ -9,16 +10,42 @@ interface ManoObraModalProps {
 }
 
 export default function ManoObraModal({ isOpen, onClose, onSuccess, manoObra }: ManoObraModalProps) {
-  const [formData, setFormData] = useState<any>({ contract_type: 'fijo' });
+  const [formData, setFormData] = useState<any>({
+    contract_type: 'fijo',
+    start_date: new Date().toISOString().split('T')[0],
+    salary: 0
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const { data: empleados } = useGrqlList<any[]>("GestionTallerProd_employees");
 
   useEffect(() => {
     if (isOpen) {
       if (manoObra) {
-        setFormData(manoObra);
+        let employeeId = manoObra.employees_fk_id;
+        if (Array.isArray(employeeId) && employeeId.length > 0) {
+          employeeId = typeof employeeId[0] === 'object' ? (employeeId[0].id || employeeId[0].employee_id) : employeeId[0];
+        } else if (!employeeId && Array.isArray(manoObra.employees) && manoObra.employees.length > 0) {
+          employeeId = manoObra.employees[0]?.id || manoObra.employees[0]?.employee_id;
+        }
+
+        const rawDate = manoObra.start_date || manoObra.created_at || '';
+        const startDate = rawDate ? String(rawDate).replace(' ', 'T').split('T')[0] : new Date().toISOString().split('T')[0];
+
+        setFormData({
+          ...manoObra,
+          employees_fk_id: employeeId || '',
+          start_date: startDate,
+          contract_type: manoObra.contract_type || 'fijo',
+          salary: Number(manoObra.salary || 0)
+        });
       } else {
-        setFormData({ contract_type: 'fijo' });
+        setFormData({
+          contract_type: 'fijo',
+          start_date: new Date().toISOString().split('T')[0],
+          salary: 0
+        });
       }
       setError(null);
     }
@@ -81,15 +108,23 @@ export default function ManoObraModal({ isOpen, onClose, onSuccess, manoObra }: 
             
             <div className="grid grid-cols-1 gap-5">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Empleado ID *</label>
-                <input 
-                  type="text" 
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Empleado *</label>
+                <select
                   required
                   value={formData.employees_fk_id || ""} 
                   onChange={e => handleFieldChange("employees_fk_id", e.target.value)} 
-                  placeholder="ID del empleado" 
-                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm font-mono" 
-                />
+                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm bg-white font-medium"
+                >
+                  <option value="">Seleccionar empleado...</option>
+                  {empleados?.map((emp: any) => {
+                    const fullName = `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || emp.employee_name || emp.name;
+                    return (
+                      <option key={emp.id || emp.employee_id} value={emp.id || emp.employee_id}>
+                        {fullName} {emp.id_card ? `(${emp.id_card})` : (emp.tax_id ? `(${emp.tax_id})` : '')}
+                      </option>
+                    );
+                  })}
+                </select>
               </div>
 
               <div>
@@ -97,7 +132,7 @@ export default function ManoObraModal({ isOpen, onClose, onSuccess, manoObra }: 
                 <input 
                   type="date" 
                   required
-                  value={formData.start_date ? String(formData.start_date).split('T')[0] : ""} 
+                  value={formData.start_date || ""} 
                   onChange={e => handleFieldChange("start_date", e.target.value)} 
                   className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm" 
                 />
@@ -108,7 +143,7 @@ export default function ManoObraModal({ isOpen, onClose, onSuccess, manoObra }: 
                 <select
                   value={formData.contract_type || "fijo"} 
                   onChange={e => handleFieldChange("contract_type", e.target.value)} 
-                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm bg-white"
+                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm bg-white font-medium"
                 >
                   <option value="fijo">Fijo / Base</option>
                   <option value="temporal">Temporal / Por Obra</option>
@@ -125,7 +160,7 @@ export default function ManoObraModal({ isOpen, onClose, onSuccess, manoObra }: 
                   value={formData.salary || ""} 
                   onChange={e => handleFieldChange("salary", parseFloat(e.target.value))} 
                   placeholder="0.00" 
-                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm" 
+                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm font-semibold" 
                 />
               </div>
             </div>

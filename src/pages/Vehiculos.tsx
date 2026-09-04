@@ -38,9 +38,24 @@ export default function Vehiculos() {
     );
   }
 
-  const filteredData = data?.filter((item: any) => {
-    return Object.values(item).some(
-      (val) => val && String(val).toLowerCase().includes(searchTerm.toLowerCase())
+  const list = Array.isArray(data) ? data : [];
+  const filteredData = list.filter((item: any) => {
+    const client = item.clients?.[0];
+    const clientName = client?.client_name || item.client_name || item.owner_name || '';
+    const taxId = client?.tax_id || item.tax_id || '';
+    const term = searchTerm.toLowerCase();
+
+    return (
+      (item.license_plate && String(item.license_plate).toLowerCase().includes(term)) ||
+      (item.brand && String(item.brand).toLowerCase().includes(term)) ||
+      (item.model && String(item.model).toLowerCase().includes(term)) ||
+      (item.color && String(item.color).toLowerCase().includes(term)) ||
+      (item.year && String(item.year).toLowerCase().includes(term)) ||
+      clientName.toLowerCase().includes(term) ||
+      taxId.toLowerCase().includes(term) ||
+      Object.values(item).some(
+        (val) => val && typeof val === "string" && val.toLowerCase().includes(term)
+      )
     );
   }) ?? [];
 
@@ -64,7 +79,7 @@ export default function Vehiculos() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-secondary leading-tight">Vehículos</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Registro de vehículos del taller • <span className="font-semibold text-primary">{meta?.totalElement ?? filteredData.length} en total</span></p>
+            <p className="text-sm text-gray-500 mt-0.5">Registro de vehículos del taller • <span className="font-semibold text-primary">{meta?.total ?? filteredData.length} en total</span></p>
           </div>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
@@ -74,17 +89,17 @@ export default function Vehiculos() {
             </span>
             <input
               type="text"
-              placeholder="Buscar registros..."
+              placeholder="Buscar por placa, modelo o cliente..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full sm:w-60 pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm"
+              className="w-full sm:w-64 pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm"
             />
           </div>
           <button
             onClick={handleOpenNew}
             className="px-5 py-2.5 bg-gradient-to-r from-primary to-blue-600 text-white rounded-xl hover:shadow-lg transform hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 shadow-soft font-bold text-sm"
           >
-            <i className="fas fa-plus"></i> Nuevo Registro
+            <i className="fas fa-plus"></i> Nuevo Vehículo
           </button>
         </div>
       </div>
@@ -96,83 +111,92 @@ export default function Vehiculos() {
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/70 text-gray-500 font-bold uppercase text-[11px] tracking-wider">
-                  <th className="py-4 px-6 text-left">ID</th>
                   <th className="py-4 px-6 text-left">Placa</th>
-                  <th className="py-4 px-6 text-left">Marca</th>
-                  <th className="py-4 px-6 text-left">Modelo</th>
+                  <th className="py-4 px-6 text-left">Marca / Modelo</th>
                   <th className="py-4 px-6 text-left">Año</th>
                   <th className="py-4 px-6 text-left">Color</th>
-                  <th className="py-4 px-6 text-left">Cliente FK</th>
+                  <th className="py-4 px-6 text-left">Cliente</th>
+                  <th className="py-4 px-6 text-left">Cédula</th>
                   <th className="py-4 px-6 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filteredData.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-16 text-center text-gray-400">
-                      <i className="fas fa-folder-open text-5xl mb-3 opacity-30"></i>
-                      <p className="font-semibold text-gray-500">No se encontraron registros</p>
+                    <td colSpan={7} className="py-16 text-center text-gray-400">
+                      <i className="fas fa-car text-5xl mb-3 opacity-30"></i>
+                      <p className="font-semibold text-gray-500">No se encontraron vehículos</p>
                       <p className="text-xs text-gray-400 mt-1">Pruebe ajustando los filtros de búsqueda</p>
                     </td>
                   </tr>
                 ) : (
-                  filteredData.map((item: any) => (
-                    <tr key={item.id} className="table-row-hover hover:bg-blue-50/5 transition-colors">
-                      <td className="py-4 px-6 text-gray-600 font-mono text-xs">{String(item.id).substring(0,8)}...</td>
-                      <td className="py-4 px-6 font-bold text-primary font-mono">{item.license_plate}</td>
-                      <td className="py-4 px-6 font-semibold text-secondary">{item.brand}</td>
-                      <td className="py-4 px-6 text-gray-600">{item.model}</td>
-                      <td className="py-4 px-6 text-gray-600">{item.year}</td>
-                      <td className="py-4 px-6 text-gray-500">{item.color || '-'}</td>
-                      <td className="py-4 px-6 text-gray-700 font-medium text-xs">
-                        {item.clients && item.clients.length > 0 ? item.clients[0].client_name : (item.clients_fk_id || '-')}
-                      </td>
-                      <td className="py-4 px-6 text-right">
-                        <div className="flex justify-end gap-1.5">
-                          <button
-                            onClick={() => handleOpenEdit(item)}
-                            className="p-2 text-gray-400 hover:text-primary hover:bg-blue-50 rounded-lg transition"
-                            title="Editar Registro"
-                          >
-                            <i className="fas fa-edit"></i>
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (window.confirm("¿Está seguro de eliminar este registro?")) {
-                                remove(item.id);
-                              }
-                            }}
-                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
-                            title="Eliminar Registro"
-                          >
-                            <i className="fas fa-trash-alt"></i>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                  filteredData.map((item: any) => {
+                    const client = item.clients?.[0];
+                    const clientName = client?.client_name || item.client_name || item.owner_name || "-";
+                    const taxId = client?.tax_id || item.tax_id || "-";
+
+                    return (
+                      <tr key={item.id} className="table-row-hover hover:bg-blue-50/5 transition-colors">
+                        <td className="py-4 px-6">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold font-mono bg-blue-50 text-blue-700 border border-blue-200">
+                            {item.license_plate || '-'}
+                          </span>
+                        </td>
+                        <td className="py-4 px-6 font-semibold text-secondary">{item.brand} {item.model}</td>
+                        <td className="py-4 px-6 text-gray-600">{item.year || '-'}</td>
+                        <td className="py-4 px-6 text-gray-600">
+                          <span className="inline-block w-3 h-3 rounded-full mr-1.5 border border-gray-300 align-middle" style={{ backgroundColor: item.color?.toLowerCase() }}></span>
+                          {item.color || '-'}
+                        </td>
+                        <td className="py-4 px-6 font-medium text-gray-800">{clientName}</td>
+                        <td className="py-4 px-6 text-gray-500 text-xs font-mono">{taxId}</td>
+                        <td className="py-4 px-6 text-right">
+                          <div className="flex justify-end gap-1.5">
+                            <button
+                              onClick={() => handleOpenEdit(item)}
+                              className="p-2 text-gray-400 hover:text-primary hover:bg-blue-50 rounded-lg transition"
+                              title="Editar Vehículo"
+                            >
+                              <i className="fas fa-edit"></i>
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (window.confirm("¿Está seguro de eliminar este vehículo?")) {
+                                  remove(item.id);
+                                }
+                              }}
+                              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
+                              title="Eliminar Vehículo"
+                            >
+                              <i className="fas fa-trash-alt"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
           </div>
           
           {/* Pagination Controls */}
-          {meta && meta.total > 0 && (
+          {meta && (meta.totalElement > 0 || meta.total > 0) && (
             <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between">
               <div className="text-sm text-gray-500">
-                Mostrando página <span className="font-bold text-gray-700">{meta.current_page}</span> de <span className="font-bold text-gray-700">{meta.total}</span>
+                Mostrando página <span className="font-bold text-gray-700">{meta.current_page || page}</span> de <span className="font-bold text-gray-700">{meta.totalElement || 1}</span>
               </div>
               <div className="flex gap-2">
                 <button 
                   onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1}
+                  disabled={page <= 1}
                   className="px-3 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-white hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition text-sm font-medium"
                 >
                   <i className="fas fa-chevron-left mr-1"></i> Anterior
                 </button>
                 <button 
                   onClick={() => setPage(p => p + 1)}
-                  disabled={page >= meta.total}
+                  disabled={page >= (meta.totalElement || 1)}
                   className="px-3 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-white hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition text-sm font-medium"
                 >
                   Siguiente <i className="fas fa-chevron-right ml-1"></i>

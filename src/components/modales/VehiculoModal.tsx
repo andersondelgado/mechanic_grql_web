@@ -20,9 +20,35 @@ export default function VehiculoModal({ isOpen, onClose, onSuccess, vehiculo }: 
   useEffect(() => {
     if (isOpen) {
       if (vehiculo) {
-        setFormData(vehiculo);
+        // Resolve clients_fk_id from any possible format in gRQL responses
+        let clientId = "";
+        if (typeof vehiculo.clients_fk_id === "string" && vehiculo.clients_fk_id) {
+          clientId = vehiculo.clients_fk_id;
+        } else if (Array.isArray(vehiculo.clients_fk_id) && vehiculo.clients_fk_id.length > 0) {
+          const first = vehiculo.clients_fk_id[0];
+          clientId = typeof first === "object" ? (first.id || first.client_id || "") : String(first);
+        } else if (Array.isArray(vehiculo.clients) && vehiculo.clients.length > 0) {
+          clientId = vehiculo.clients[0]?.id || vehiculo.clients[0]?.client_id || "";
+        } else if (vehiculo.client && typeof vehiculo.client === "object") {
+          clientId = vehiculo.client.id || vehiculo.client.client_id || "";
+        }
+
+        setFormData({
+          ...vehiculo,
+          clients_fk_id: clientId,
+          license_plate: vehiculo.license_plate || "",
+          brand: vehiculo.brand || "",
+          model: vehiculo.model || "",
+          year: vehiculo.year || new Date().getFullYear(),
+          color: vehiculo.color || "",
+          mileage: vehiculo.mileage || "",
+          vehicle_type: vehiculo.vehicle_type || vehiculo.type || "",
+          observations: vehiculo.observations || ""
+        });
       } else {
-        setFormData({});
+        setFormData({
+          year: new Date().getFullYear()
+        });
       }
       setError(null);
     }
@@ -39,10 +65,22 @@ export default function VehiculoModal({ isOpen, onClose, onSuccess, vehiculo }: 
     setLoading(true);
     setError(null);
     try {
+      const payload = {
+        license_plate: formData.license_plate || "",
+        brand: formData.brand || "",
+        model: formData.model || "",
+        year: parseInt(formData.year || 0, 10),
+        color: formData.color || "",
+        mileage: formData.mileage ? String(formData.mileage) : "",
+        vehicle_type: formData.vehicle_type || formData.type || "",
+        clients_fk_id: formData.clients_fk_id || "",
+        observations: formData.observations || ""
+      };
+
       if (vehiculo?.id) {
-        await updateEntity("GestionTallerProd_vehicles", vehiculo.id, formData);
+        await updateEntity("GestionTallerProd_vehicles", vehiculo.id, payload);
       } else {
-        await createEntity("GestionTallerProd_vehicles", formData);
+        await createEntity("GestionTallerProd_vehicles", payload);
       }
       onSuccess();
       onClose();
@@ -150,11 +188,14 @@ export default function VehiculoModal({ isOpen, onClose, onSuccess, vehiculo }: 
                   {loadingClientes ? (
                     <option disabled>Cargando clientes...</option>
                   ) : (
-                    clientes?.map((c: any) => (
-                      <option key={c.id} value={c.id}>
-                        {c.client_name} - {c.tax_id}
-                      </option>
-                    ))
+                    clientes?.map((c: any) => {
+                      const cId = c.id || c.client_id || c._id;
+                      return (
+                        <option key={cId} value={cId}>
+                          {c.client_name} {c.tax_id ? `- ${c.tax_id}` : ""}
+                        </option>
+                      );
+                    })
                   )}
                 </select>
               </div>
@@ -172,8 +213,8 @@ export default function VehiculoModal({ isOpen, onClose, onSuccess, vehiculo }: 
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo / Categoría</label>
                 <input 
                   type="text" 
-                  value={formData.type || ""} 
-                  onChange={e => handleFieldChange("type", e.target.value)} 
+                  value={formData.vehicle_type || formData.type || ""} 
+                  onChange={e => handleFieldChange("vehicle_type", e.target.value)} 
                   placeholder="Sedán, SUV, Camioneta..." 
                   className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm" 
                 />

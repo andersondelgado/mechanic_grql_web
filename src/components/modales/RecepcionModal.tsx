@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { createEntity, updateEntity, getEntity } from "../../api/client";
-import Autocomplete from "../ui/Autocomplete";
+import { createEntity, updateEntity } from "../../api/client";
+import { useGrqlList } from "../../hooks/use-grql";
 
 interface RecepcionModalProps {
   isOpen: boolean;
@@ -10,16 +10,56 @@ interface RecepcionModalProps {
 }
 
 export default function RecepcionModal({ isOpen, onClose, onSuccess, recepcion }: RecepcionModalProps) {
-  const [formData, setFormData] = useState<any>({ status: 'proceso' });
+  const [formData, setFormData] = useState<any>({
+    status: 'proceso',
+    entry_date: new Date().toISOString().split('T')[0]
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const { data: vehiculos } = useGrqlList<any[]>("GestionTallerProd_vehicles");
 
   useEffect(() => {
     if (isOpen) {
       if (recepcion) {
-        setFormData(recepcion);
+        const vehicle = recepcion.vehicles?.[0];
+        const client = recepcion.clients?.[0] || vehicle?.clients?.[0];
+
+        let vehicleId = recepcion.vehicles_fk_id;
+        if (Array.isArray(vehicleId) && vehicleId.length > 0) {
+          vehicleId = typeof vehicleId[0] === 'object' ? (vehicleId[0].id || vehicleId[0].vehicle_id) : vehicleId[0];
+        } else if (!vehicleId) {
+          vehicleId = vehicle?.id || vehicle?.vehicle_id || '';
+        }
+
+        const rawDate = recepcion.entry_date || recepcion.reception_date || recepcion.receipt_date || recepcion.created_at || '';
+        const entryDate = rawDate ? String(rawDate).replace(' ', 'T').split('T')[0] : new Date().toISOString().split('T')[0];
+
+        const ownerName = recepcion.owner_name || recepcion.client_name || client?.client_name || recepcion.received_by || '';
+        const ownerPhone = recepcion.owner_phone || recepcion.phone || recepcion.cell_phone || client?.cell_phone || '';
+        const fuelLevel = recepcion.fuel_level || recepcion.gasoline_level || '';
+        const status = recepcion.status || 'proceso';
+        const observations = recepcion.observations || recepcion.reason_for_entry || recepcion.pending_issues || recepcion.work_performed || '';
+
+        setFormData({
+          ...recepcion,
+          vehicles_fk_id: vehicleId || '',
+          entry_date: entryDate,
+          owner_name: ownerName,
+          owner_phone: ownerPhone,
+          fuel_level: fuelLevel,
+          status: status,
+          observations: observations
+        });
       } else {
-        setFormData({ status: 'proceso' });
+        setFormData({
+          status: 'proceso',
+          entry_date: new Date().toISOString().split('T')[0],
+          owner_name: '',
+          owner_phone: '',
+          fuel_level: '',
+          observations: ''
+        });
       }
       setError(null);
     }
@@ -28,7 +68,22 @@ export default function RecepcionModal({ isOpen, onClose, onSuccess, recepcion }
   if (!isOpen) return null;
 
   const handleFieldChange = (field: string, value: string) => {
-    setFormData((prev: any) => ({ ...prev, [field]: value }));
+    setFormData((prev: any) => {
+      const updated = { ...prev, [field]: value };
+      if (field === 'vehicles_fk_id') {
+        const selectedVeh = vehiculos?.find((v: any) => (v.id === value || v.vehicle_id === value));
+        if (selectedVeh) {
+          const client = selectedVeh.clients?.[0];
+          if (!updated.owner_name && (selectedVeh.client_name || client?.client_name)) {
+            updated.owner_name = selectedVeh.client_name || client?.client_name || '';
+          }
+          if (!updated.owner_phone && (selectedVeh.cell_phone || client?.cell_phone || selectedVeh.phone)) {
+            updated.owner_phone = selectedVeh.cell_phone || client?.cell_phone || selectedVeh.phone || '';
+          }
+        }
+      }
+      return updated;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -82,15 +137,24 @@ export default function RecepcionModal({ isOpen, onClose, onSuccess, recepcion }
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
-                <Autocomplete
-                  label="Vehículo *"
-                  placeholder="Buscar por placa o marca..."
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Vehículo *</label>
+                <select
+                  required
                   value={formData.vehicles_fk_id || ""}
-                  onChange={(val) => handleFieldChange("vehicles_fk_id", val)}
-                  fetchData={() => getEntity("GestionTallerProd_vehicles")}
-                  displayField={(item) => `${item.license_plate} - ${item.brand} ${item.model || ''}`}
-                  searchFields={['license_plate', 'brand', 'model', 'id']}
-                />
+                  onChange={e => handleFieldChange("vehicles_fk_id", e.target.value)}
+                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm bg-white font-medium"
+                >
+                  <option value="">Seleccionar vehículo...</option>
+                  {vehiculos?.map((v: any) => {
+                    const plate = v.license_plate || v.plate;
+                    const desc = `${v.brand || ''} ${v.model || ''}`.trim();
+                    return (
+                      <option key={v.id || v.vehicle_id} value={v.id || v.vehicle_id}>
+                        {plate ? `[${plate}]` : ''} {desc || v.id}
+                      </option>
+                    );
+                  })}
+                </select>
               </div>
 
               <div>
@@ -98,7 +162,7 @@ export default function RecepcionModal({ isOpen, onClose, onSuccess, recepcion }
                 <input 
                   type="date" 
                   required
-                  value={formData.entry_date ? String(formData.entry_date).split('T')[0] : ""} 
+                  value={formData.entry_date || ""} 
                   onChange={e => handleFieldChange("entry_date", e.target.value)} 
                   className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm" 
                 />
@@ -155,11 +219,11 @@ export default function RecepcionModal({ isOpen, onClose, onSuccess, recepcion }
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Observaciones</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Observaciones / Motivo de Entrada</label>
                 <textarea 
                   value={formData.observations || ""} 
                   onChange={e => handleFieldChange("observations", e.target.value)} 
-                  placeholder="Rayones, estado general al recibir, objetos personales..." 
+                  placeholder="Rayones, estado general al recibir, objetos personales, motivo de ingreso..." 
                   rows={3}
                   className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm resize-none" 
                 />

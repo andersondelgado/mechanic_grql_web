@@ -38,11 +38,12 @@ export default function Repuestos() {
     );
   }
 
-  const filteredData = data?.filter((item: any) => {
+  const list = Array.isArray(data) ? data : [];
+  const filteredData = list.filter((item: any) => {
     return Object.values(item).some(
       (val) => val && String(val).toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }) ?? [];
+  });
 
   const handleOpenNew = () => {
     setSelectedRepuesto(null);
@@ -64,7 +65,7 @@ export default function Repuestos() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-secondary leading-tight">Repuestos</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Catálogo e inventario de piezas • <span className="font-semibold text-primary">{meta?.totalElement ?? filteredData.length} en total</span></p>
+            <p className="text-sm text-gray-500 mt-0.5">Catálogo e inventario de piezas • <span className="font-semibold text-primary">{meta?.total ?? filteredData.length} en total</span></p>
           </div>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
@@ -165,22 +166,22 @@ export default function Repuestos() {
           </div>
 
           {/* Pagination Controls */}
-          {meta && meta.total > 0 && (
+          {meta && (meta.totalElement > 0 || meta.total > 0) && (
             <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between">
               <div className="text-sm text-gray-500">
-                Mostrando página <span className="font-bold text-gray-700">{meta.current_page}</span> de <span className="font-bold text-gray-700">{meta.total}</span>
+                Mostrando página <span className="font-bold text-gray-700">{meta.current_page || page}</span> de <span className="font-bold text-gray-700">{meta.totalElement || 1}</span>
               </div>
               <div className="flex gap-2">
                 <button 
                   onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1}
+                  disabled={page <= 1}
                   className="px-3 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-white hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition text-sm font-medium"
                 >
                   <i className="fas fa-chevron-left mr-1"></i> Anterior
                 </button>
                 <button 
                   onClick={() => setPage(p => p + 1)}
-                  disabled={page >= meta.total}
+                  disabled={page >= (meta.totalElement || 1)}
                   className="px-3 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-white hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition text-sm font-medium"
                 >
                   Siguiente <i className="fas fa-chevron-right ml-1"></i>

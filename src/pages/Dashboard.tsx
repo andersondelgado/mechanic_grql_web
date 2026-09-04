@@ -15,36 +15,60 @@ interface MenuGroup {
 
 const menuGroups: MenuGroup[] = [
   {
-    label: "Tablero",
+    label: "Dashboard",
     items: [
-      { name: "Tablero", path: "/", icon: "fas fa-chart-line" }
+      { name: "Dashboard", path: "/", icon: "fas fa-tachometer-alt" }
     ]
   },
   {
-    label: "Mantenimiento",
+    label: "Taller",
     items: [
       { name: "Clientes", path: "/clientes", icon: "fas fa-users" },
+      { name: "Proveedores", path: "/proveedores", icon: "fas fa-building" },
       { name: "Vehículos", path: "/vehiculos", icon: "fas fa-car" },
-      { name: "Peritajes", path: "/peritajes", icon: "fas fa-camera" },
-      { name: "Recepciones", path: "/recepciones", icon: "fas fa-warehouse" },
-      { name: "Órdenes", path: "/ordenes", icon: "fas fa-clipboard-list" },
-      { name: "Cotizaciones", path: "/cotizaciones", icon: "fas fa-file-invoice" }
-    ]
-  },
-  {
-    label: "Inventario",
-    items: [
-      { name: "Repuestos", path: "/repuestos", icon: "fas fa-gears" },
-      { name: "Materiales", path: "/materiales", icon: "fas fa-paint-roller" },
-      { name: "Mano de Obra", path: "/mano-obra", icon: "fas fa-wrench" },
-      { name: "Inventario", path: "/inventario", icon: "fas fa-boxes-stacked" }
+      { name: "Fichas de Recepción", path: "/recepciones", icon: "fas fa-clipboard-list" },
+      { name: "Historial Cliente", path: "/historial", icon: "fas fa-history" },
+      { name: "Presupuestos", path: "/cotizaciones", icon: "fas fa-file-invoice" },
+      { name: "Repuestos", path: "/repuestos", icon: "fas fa-cog" },
+      { name: "Notas de Entrega", path: "/notas-entrega", icon: "fas fa-receipt" },
+      { name: "Tarjetas de Revisión", path: "/tarjetas-revision", icon: "fas fa-clipboard-check" },
+      { name: "Compras Pendientes", path: "/compras-pendientes", icon: "fas fa-box-open" },
     ]
   },
   {
     label: "Finanzas",
     items: [
-      { name: "Facturas", path: "/facturas", icon: "fas fa-file-invoice-dollar" },
-      { name: "Pagos", path: "/pagos", icon: "fas fa-credit-card" }
+      { name: "Ingresos & Gastos", path: "/transacciones", icon: "fas fa-chart-line" },
+      { name: "Cuentas por Cobrar", path: "/cuentas-cobrar", icon: "fas fa-file-invoice-dollar" },
+      { name: "Cuentas por Pagar", path: "/cuentas-pagar", icon: "fas fa-file-export" },
+    ]
+  },
+  {
+    label: "Latonería",
+    items: [
+      { name: "Materiales", path: "/materiales", icon: "fas fa-paint-roller" },
+      { name: "Órdenes de Latonería", path: "/ordenes", icon: "fas fa-wrench" },
+    ]
+  },
+  {
+    label: "Peritajes",
+    items: [
+      { name: "Listado de Peritajes", path: "/peritajes", icon: "fas fa-search-dollar" },
+    ]
+  },
+  {
+    label: "RRHH",
+    items: [
+      { name: "Empleados", path: "/empleados", icon: "fas fa-id-badge" },
+      { name: "Contratos de Trabajo", path: "/contratos", icon: "fas fa-file-contract" },
+      { name: "Comunicaciones", path: "/comunicaciones", icon: "fas fa-bullhorn" },
+    ]
+  },
+  {
+    label: "Reportes",
+    items: [
+      { name: "Reportes", path: "/reportes", icon: "fas fa-chart-bar" },
+      { name: "Backup", path: "/backup", icon: "fas fa-download" },
     ]
   },
   {
@@ -56,22 +80,29 @@ const menuGroups: MenuGroup[] = [
 ];
 
 const routeInfo: Record<string, { title: string; subtitle: string }> = {
-  "/": { title: "Tablero de Control", subtitle: "Resumen operativo y estadísticas generales" },
-  "/clientes": { title: "Gestión de Clientes", subtitle: "Listado y registro de clientes del taller" },
-  "/vehiculos": { title: "Gestión de Vehículos", subtitle: "Listado y especificaciones de vehículos" },
-  "/proveedores": { title: "Proveedores", subtitle: "Catálogo de proveedores de repuestos y servicios" },
-  "/empleados": { title: "Personal y Empleados", subtitle: "Gestión de mecánicos y personal del taller" },
-  "/ordenes": { title: "Órdenes de Trabajo", subtitle: "Seguimiento de reparaciones y estados" },
-  "/cotizaciones": { title: "Presupuestos y Cotizaciones", subtitle: "Detalle de cotizaciones y costos estimativos" },
-  "/repuestos": { title: "Catálogo de Repuestos", subtitle: "Stock y precios de piezas de repuesto" },
-  "/materiales": { title: "Latonería y Pintura", subtitle: "Control de materiales y consumos por pieza" },
-  "/facturas": { title: "Cuentas por Cobrar", subtitle: "Registro de facturas emitidas" },
-  "/pagos": { title: "Transacciones Financieras", subtitle: "Flujo de caja y pagos registrados" },
-  "/inventario": { title: "Inventario de Repuestos", subtitle: "Pendientes por comprar y stock mínimo" },
-  "/mano-obra": { title: "Contratos de Trabajo", subtitle: "Personalización de mano de obra por pieza" },
-  "/peritajes": { title: "Peritajes e Inspecciones", subtitle: "Grabación de video y análisis con Inteligencia Artificial" },
-  "/peritajes/nuevo": { title: "Nueva Inspección", subtitle: "Registro e inicio del análisis de video" },
-  "/recepciones": { title: "Fichas de Recepción", subtitle: "Registro de entrada de vehículos al taller" },
+  "/": { title: "Dashboard", subtitle: "Resumen de operaciones en tiempo real" },
+  "/clientes": { title: "Clientes", subtitle: "Gestión de clientes registrados" },
+  "/proveedores": { title: "Proveedores", subtitle: "Proveedores y distribuidores" },
+  "/vehiculos": { title: "Vehículos", subtitle: "Parque automotriz registrado" },
+  "/recepciones": { title: "Fichas de Recepción", subtitle: "Fichas de ingreso de vehículos" },
+  "/historial": { title: "Historial del Cliente", subtitle: "Historial de reparaciones realizadas" },
+  "/cotizaciones": { title: "Presupuestos", subtitle: "Presupuestos y cotizaciones" },
+  "/repuestos": { title: "Catálogo de Repuestos", subtitle: "Catálogo de repuestos y refacciones" },
+  "/notas-entrega": { title: "Notas de Entrega", subtitle: "Notas de entrega de vehículos" },
+  "/tarjetas-revision": { title: "Tarjetas de Revisión", subtitle: "Tarjetas de revisión técnica" },
+  "/compras-pendientes": { title: "Compras Pendientes", subtitle: "Órdenes de compra pendientes" },
+  "/transacciones": { title: "Ingresos & Gastos", subtitle: "Ingresos y gastos mensuales" },
+  "/cuentas-cobrar": { title: "Cuentas por Cobrar", subtitle: "Cuentas por cobrar del sistema" },
+  "/cuentas-pagar": { title: "Cuentas por Pagar", subtitle: "Cuentas por pagar del sistema" },
+  "/materiales": { title: "Materiales - Latonería y Pintura", subtitle: "Materiales para latonería y pintura" },
+  "/ordenes": { title: "Órdenes de Latonería", subtitle: "Seguimiento y órdenes de trabajo" },
+  "/peritajes": { title: "Peritajes de Vehículos", subtitle: "Inspección y evaluación de vehículos con IA" },
+  "/peritajes/nuevo": { title: "Nuevo Peritaje", subtitle: "Grabación y análisis multimodal de video" },
+  "/empleados": { title: "Empleados / RRHH", subtitle: "Personal y recursos humanos" },
+  "/contratos": { title: "Contratos de Trabajo", subtitle: "Contratos y acuerdos laborales" },
+  "/comunicaciones": { title: "Comunicaciones Internas", subtitle: "Memorandos y circulares de personal" },
+  "/reportes": { title: "Reportes", subtitle: "Reportes y estadísticas" },
+  "/backup": { title: "Backup y Restauración", subtitle: "Gestión de copias de seguridad" },
   "/usuarios": { title: "Control de Acceso", subtitle: "Gestión de usuarios y seguridad del sistema" },
 };
 
@@ -83,12 +114,15 @@ export default function Dashboard() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
 
-  // Get current screen info
   const currentPath = location.pathname;
-  // Handle dynamic subpaths like /peritajes/123
   const isPeritajeForm = currentPath.startsWith("/peritajes/");
   const infoKey = isPeritajeForm && currentPath !== "/peritajes" ? "/peritajes/nuevo" : currentPath;
-  const currentInfo = routeInfo[infoKey] || { title: "Sistema Taller 360", subtitle: "Gestión Integral" };
+  const currentInfo = routeInfo[infoKey] || { title: "Taller 360 Garage", subtitle: "Sistema Integral gRQL" };
+
+  const toggleDarkMode = () => {
+    setDarkMode(!darkMode);
+    document.documentElement.classList.toggle("dark", !darkMode);
+  };
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
@@ -101,7 +135,7 @@ export default function Dashboard() {
               <i className="fas fa-car-side text-2xl text-primary"></i>
               <div>
                 <h2 className="font-bold text-xl">Taller 360</h2>
-                <p className="text-xs text-gray-400">Menú de Navegación</p>
+                <p className="text-xs text-gray-400">Menú</p>
               </div>
             </div>
             <nav className="p-2 space-y-1">
@@ -152,11 +186,11 @@ export default function Dashboard() {
                     key={item.path}
                     to={item.path}
                     className={`flex items-center gap-3 mx-2 my-1 px-3 py-2.5 rounded-xl transition-all duration-200 ${
-                      isActive ? "bg-primary/20 text-primary font-medium shadow-sm" : "text-gray-300 hover:bg-gray-800"
+                      isActive ? "bg-primary/20 text-primary font-semibold" : "text-gray-300 hover:bg-gray-800"
                     }`}
                   >
-                    <i className={`${item.icon} w-5 text-center`}></i>
-                    <span>{item.name}</span>
+                    <i className={`${item.icon} w-5 text-center text-sm`}></i>
+                    <span className="text-sm">{item.name}</span>
                   </Link>
                 );
               })}
@@ -164,113 +198,89 @@ export default function Dashboard() {
           ))}
         </nav>
         <div className="p-4 border-t border-gray-700">
-          <div className="flex items-center justify-between text-sm p-2 hover:bg-gray-800 rounded-xl transition group">
-            <div className="flex items-center gap-3">
-              <i className="fas fa-user-circle text-2xl text-primary"></i>
-              <div>
-                <p className="font-medium text-gray-200 truncate max-w-[120px]">{user?.email?.split('@')[0] || "Usuario"}</p>
-                <p className="text-xs text-gray-400 truncate max-w-[120px]">{user?.email || "taller360"}</p>
-              </div>
+          <div className="flex items-center gap-3 text-sm p-2 hover:bg-gray-800 rounded-xl transition">
+            <i className="fas fa-user-circle text-2xl text-primary"></i>
+            <div className="truncate">
+              <p className="font-medium text-white truncate">{user?.username || "Administrador"}</p>
+              <p className="text-xs text-gray-400 truncate">{user?.email || "admin@taller360.com"}</p>
             </div>
-            <button
-              onClick={logout}
-              className="text-gray-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-gray-700 transition"
-              title="Cerrar Sesión"
-            >
-              <i className="fas fa-sign-out-alt"></i>
-            </button>
           </div>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <div className="flex-1 lg:ml-64 flex flex-col h-full overflow-hidden">
-        {/* Header */}
-        <header className="bg-white shadow-soft border-b px-4 py-3 lg:px-8 flex items-center justify-between flex-wrap gap-3 z-20">
+      {/* Main Content Area */}
+      <main className="flex-1 lg:ml-64 flex flex-col h-full overflow-y-auto">
+        {/* Top Header */}
+        <header className="bg-white shadow-soft border-b border-gray-100 px-4 py-3.5 lg:px-8 flex items-center justify-between flex-wrap gap-3 z-10">
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2.5 hover:bg-gray-100 rounded-xl transition border"
+            <button 
+              onClick={() => setSidebarOpen(true)} 
+              className="lg:hidden p-2.5 hover:bg-gray-100 rounded-xl transition"
             >
               <i className="fas fa-bars text-gray-600"></i>
             </button>
             <div>
-              <h2 className="text-2xl font-bold text-secondary leading-tight">{currentInfo.title}</h2>
-              <p className="text-sm text-gray-500">{currentInfo.subtitle}</p>
+              <h2 className="text-xl font-bold text-secondary">{currentInfo.title}</h2>
+              <p className="text-xs text-gray-500 mt-0.5">{currentInfo.subtitle}</p>
             </div>
           </div>
-
-          <div className="flex items-center gap-2">
-            {/* Dark Mode toggle mock */}
-            <button
-              onClick={() => setDarkMode(!darkMode)}
-              className="p-2.5 hover:bg-gray-100 rounded-xl transition border text-gray-600"
+          
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={toggleDarkMode}
+              className="p-2.5 hover:bg-gray-100 rounded-xl transition text-gray-600" 
+              title="Cambiar Tema"
             >
-              <i className={darkMode ? "fas fa-sun text-yellow-500" : "fas fa-moon text-gray-500"}></i>
+              <i className={darkMode ? "fas fa-sun text-yellow-500" : "fas fa-moon"}></i>
             </button>
 
-            {/* Profile Menu Dropdown */}
+            {/* Profile Dropdown */}
             <div className="relative">
-              <button
+              <button 
                 onClick={() => setProfileOpen(!profileOpen)}
-                className="flex items-center gap-2 p-1.5 hover:bg-gray-100 rounded-xl transition border"
+                className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded-xl transition"
               >
-                <div className="w-8 h-8 bg-gradient-to-r from-primary to-blue-600 text-white rounded-full flex items-center justify-center font-bold">
-                  {user?.email?.charAt(0).toUpperCase() || "U"}
+                <div className="w-8 h-8 bg-gradient-to-r from-primary to-blue-600 text-white rounded-full flex items-center justify-center font-bold text-xs">
+                  {user?.username ? user.username.slice(0, 2).toUpperCase() : "AD"}
                 </div>
-                <span className="hidden md:block font-medium text-sm text-gray-700 pr-1">
-                  {user?.email?.split('@')[0] || "Admin"}
-                </span>
-                <i className="fas fa-chevron-down text-[10px] text-gray-400 pr-1"></i>
+                <span className="hidden md:block font-medium text-sm text-secondary">{user?.username || "Admin"}</span>
+                <i className="fas fa-chevron-down text-xs text-gray-400"></i>
               </button>
 
               {profileOpen && (
-                <>
-                  <div className="fixed inset-0 z-30" onClick={() => setProfileOpen(false)}></div>
-                  <div className="absolute right-0 mt-2 w-52 bg-white border border-gray-200 rounded-xl shadow-strong z-40 overflow-hidden">
-                    <div className="px-4 py-3 border-b text-xs">
-                      <p className="font-semibold text-secondary">Conectado como</p>
-                      <p className="text-gray-500 truncate mt-0.5">{user?.email}</p>
-                    </div>
-                    <a
-                      href="#"
-                      onClick={(e) => e.preventDefault()}
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-gray-700"
-                    >
-                      <i className="fas fa-user text-primary w-4 text-center"></i>
-                      <span>Mi Perfil</span>
-                    </a>
-                    <a
-                      href="#"
-                      onClick={(e) => e.preventDefault()}
-                      className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors text-gray-700"
-                    >
-                      <i className="fas fa-cog text-gray-500 w-4 text-center"></i>
-                      <span>Configuración</span>
-                    </a>
-                    <hr className="border-gray-100" />
-                    <button
-                      onClick={() => {
-                        setProfileOpen(false);
-                        logout();
-                      }}
-                      className="flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-red-50 text-red-600 transition-colors text-left font-medium"
-                    >
-                      <i className="fas fa-sign-out-alt w-4 text-center"></i>
-                      <span>Cerrar Sesión</span>
-                    </button>
+                <div className="absolute right-0 mt-2 w-52 bg-white border border-gray-100 rounded-2xl shadow-strong z-20 py-2 animate-fadeIn">
+                  <div className="px-4 py-2 border-b border-gray-100">
+                    <p className="text-xs text-gray-400 font-semibold uppercase">Cuenta</p>
+                    <p className="text-sm font-bold text-secondary truncate">{user?.username || "Admin"}</p>
                   </div>
-                </>
+                  <Link 
+                    to="/usuarios" 
+                    onClick={() => setProfileOpen(false)}
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition"
+                  >
+                    <i className="fas fa-user text-primary text-xs"></i> Perfil & Accesos
+                  </Link>
+                  <hr className="my-1 border-gray-100" />
+                  <button 
+                    onClick={() => {
+                      setProfileOpen(false);
+                      logout();
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition font-semibold"
+                  >
+                    <i className="fas fa-sign-out-alt text-xs"></i> Cerrar Sesión
+                  </button>
+                </div>
               )}
             </div>
           </div>
         </header>
 
-        {/* Dynamic Page Content */}
-        <main className="flex-1 overflow-y-auto bg-gray-50">
+        {/* Content Outlet */}
+        <div className="flex-1 overflow-y-auto">
           <Outlet />
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }

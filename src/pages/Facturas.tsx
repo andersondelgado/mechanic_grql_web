@@ -38,11 +38,13 @@ export default function Facturas() {
     );
   }
 
-  const filteredData = data?.filter((item: any) => {
-    return Object.values(item).some(
-      (val) => val && String(val).toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }) ?? [];
+  const list = Array.isArray(data) ? data : [];
+  const filteredData = list.filter((item: any) => {
+    const client = item.clients?.[0];
+    const clientStr = client ? `${client.client_name || ''} ${client.tax_id || ''}` : '';
+    const searchable = `${Object.values(item).filter(v => typeof v !== 'object').join(" ")} ${clientStr}`.toLowerCase();
+    return searchable.includes(searchTerm.toLowerCase());
+  });
 
   const handleOpenNew = () => {
     setSelectedFactura(null);
@@ -64,7 +66,7 @@ export default function Facturas() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-secondary leading-tight">Estados de Cuenta</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Control de facturación y balances • <span className="font-semibold text-primary">{meta?.totalElement ?? filteredData.length} en total</span></p>
+            <p className="text-sm text-gray-500 mt-0.5">Control de facturación y balances • <span className="font-semibold text-primary">{meta?.total ?? filteredData.length} en total</span></p>
           </div>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
@@ -74,7 +76,7 @@ export default function Facturas() {
             </span>
             <input
               type="text"
-              placeholder="Buscar registros..."
+              placeholder="Buscar por cliente, descripción..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full sm:w-60 pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm"
@@ -97,7 +99,7 @@ export default function Facturas() {
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/70 text-gray-500 font-bold uppercase text-[11px] tracking-wider">
                   <th className="py-4 px-6 text-left">ID</th>
-                  <th className="py-4 px-6 text-left">Cliente ID</th>
+                  <th className="py-4 px-6 text-left">Cliente</th>
                   <th className="py-4 px-6 text-left">Fecha Transacción</th>
                   <th className="py-4 px-6 text-left">Descripción</th>
                   <th className="py-4 px-6 text-left">Débito (Cobrar)</th>
@@ -116,67 +118,84 @@ export default function Facturas() {
                     </td>
                   </tr>
                 ) : (
-                  filteredData.map((item: any) => (
-                    <tr key={item.id} className="table-row-hover hover:bg-blue-50/5 transition-colors">
-                      <td className="py-4 px-6 text-gray-600 font-mono text-xs">{String(item.id).substring(0,8)}...</td>
-                      <td className="py-4 px-6 text-gray-500 font-mono text-xs">{item.clients_fk_id}</td>
-                      <td className="py-4 px-6 text-gray-600">{item.transaction_date}</td>
-                      <td className="py-4 px-6 text-gray-600 truncate max-w-[200px]">{item.description}</td>
-                      <td className="py-4 px-6 text-red-600 font-semibold">
-                        {item.debit ? `$${Number(item.debit).toFixed(2)}` : '-'}
-                      </td>
-                      <td className="py-4 px-6 text-green-600 font-semibold">
-                        {item.credit ? `$${Number(item.credit).toFixed(2)}` : '-'}
-                      </td>
-                      <td className="py-4 px-6 font-bold text-secondary">
-                        {item.balance ? `$${Number(item.balance).toFixed(2)}` : '-'}
-                      </td>
-                      <td className="py-4 px-6 text-right">
-                        <div className="flex justify-end gap-1.5">
-                          <button
-                            onClick={() => handleOpenEdit(item)}
-                            className="p-2 text-gray-400 hover:text-primary hover:bg-blue-50 rounded-lg transition"
-                            title="Editar Registro"
-                          >
-                            <i className="fas fa-edit"></i>
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (window.confirm("¿Está seguro de eliminar este registro?")) {
-                                remove(item.id);
-                              }
-                            }}
-                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
-                            title="Eliminar Registro"
-                          >
-                            <i className="fas fa-trash-alt"></i>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                  filteredData.map((item: any) => {
+                    const client = item.clients?.[0];
+                    const clientName = client?.client_name || item.client_name || item.owner_name;
+                    const taxId = client?.tax_id || item.tax_id || "";
+
+                    return (
+                      <tr key={item.id} className="table-row-hover hover:bg-blue-50/5 transition-colors">
+                        <td className="py-4 px-6 text-gray-600 font-mono text-xs">{String(item.id).substring(0,8)}...</td>
+                        <td className="py-4 px-6">
+                          {clientName ? (
+                            <div>
+                              <div className="font-semibold text-secondary">{clientName}</div>
+                              {taxId && <div className="text-xs text-gray-400 font-mono">{taxId}</div>}
+                            </div>
+                          ) : item.clients_fk_id ? (
+                            <span className="text-gray-400 font-mono text-xs">{String(item.clients_fk_id).substring(0,8)}...</span>
+                          ) : (
+                            <span className="text-gray-400 text-xs">—</span>
+                          )}
+                        </td>
+                        <td className="py-4 px-6 text-gray-600">{item.transaction_date ? String(item.transaction_date).substring(0, 10) : '—'}</td>
+                        <td className="py-4 px-6 text-gray-600 truncate max-w-[200px]">{item.description}</td>
+                        <td className="py-4 px-6 text-red-600 font-semibold">
+                          {item.debit ? `$${Number(item.debit).toFixed(2)}` : '-'}
+                        </td>
+                        <td className="py-4 px-6 text-green-600 font-semibold">
+                          {item.credit ? `$${Number(item.credit).toFixed(2)}` : '-'}
+                        </td>
+                        <td className="py-4 px-6 font-bold text-secondary">
+                          {item.balance ? `$${Number(item.balance).toFixed(2)}` : '-'}
+                        </td>
+                        <td className="py-4 px-6 text-right">
+                          <div className="flex justify-end gap-1.5">
+                            <button
+                              onClick={() => handleOpenEdit(item)}
+                              className="p-2 text-gray-400 hover:text-primary hover:bg-blue-50 rounded-lg transition"
+                              title="Editar Registro"
+                            >
+                              <i className="fas fa-edit"></i>
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (window.confirm("¿Está seguro de eliminar este registro?")) {
+                                  remove(item.id);
+                                }
+                              }}
+                              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
+                              title="Eliminar Registro"
+                            >
+                              <i className="fas fa-trash-alt"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
           </div>
 
           {/* Pagination Controls */}
-          {meta && meta.total > 0 && (
+          {meta && (meta.totalElement > 0 || meta.total > 0) && (
             <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between">
               <div className="text-sm text-gray-500">
-                Mostrando página <span className="font-bold text-gray-700">{meta.current_page}</span> de <span className="font-bold text-gray-700">{meta.total}</span>
+                Mostrando página <span className="font-bold text-gray-700">{meta.current_page || page}</span> de <span className="font-bold text-gray-700">{meta.totalElement || 1}</span>
               </div>
               <div className="flex gap-2">
                 <button 
                   onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1}
+                  disabled={page <= 1}
                   className="px-3 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-white hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition text-sm font-medium"
                 >
                   <i className="fas fa-chevron-left mr-1"></i> Anterior
                 </button>
                 <button 
                   onClick={() => setPage(p => p + 1)}
-                  disabled={page >= meta.total}
+                  disabled={page >= (meta.totalElement || 1)}
                   className="px-3 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-white hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition text-sm font-medium"
                 >
                   Siguiente <i className="fas fa-chevron-right ml-1"></i>

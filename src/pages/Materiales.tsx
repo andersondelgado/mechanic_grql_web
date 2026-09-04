@@ -38,11 +38,12 @@ export default function Materiales() {
     );
   }
 
-  const filteredData = data?.filter((item: any) => {
+  const list = Array.isArray(data) ? data : [];
+  const filteredData = list.filter((item: any) => {
     return Object.values(item).some(
       (val) => val && String(val).toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }) ?? [];
+  });
 
   const handleOpenNew = () => {
     setSelectedMaterial(null);
@@ -60,11 +61,11 @@ export default function Materiales() {
       <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="flex items-center gap-3.5">
           <div className="p-3.5 bg-blue-50/70 text-primary rounded-2xl">
-            <i className="fas fa-boxes text-2xl"></i>
+            <i className="fas fa-paint-roller text-2xl"></i>
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-secondary leading-tight">Materiales</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Control de insumos de taller • <span className="font-semibold text-primary">{meta?.totalElement ?? filteredData.length} en total</span></p>
+            <h1 className="text-2xl font-bold text-secondary leading-tight">Materiales - Latonería y Pintura</h1>
+            <p className="text-sm text-gray-500 mt-0.5">Control de insumos, costos por pieza y rendimientos • <span className="font-semibold text-primary">{meta?.total ?? filteredData.length} en total</span></p>
           </div>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
@@ -74,7 +75,7 @@ export default function Materiales() {
             </span>
             <input
               type="text"
-              placeholder="Buscar registros..."
+              placeholder="Buscar por pieza, material..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full sm:w-60 pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm"
@@ -97,78 +98,121 @@ export default function Materiales() {
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/70 text-gray-500 font-bold uppercase text-[11px] tracking-wider">
                   <th className="py-4 px-6 text-left">ID</th>
-                  <th className="py-4 px-6 text-left">Nombre Material</th>
-                  <th className="py-4 px-6 text-left">Medida</th>
-                  <th className="py-4 px-6 text-left">Costo Unitario</th>
-                  <th className="py-4 px-6 text-left">Stock</th>
+                  <th className="py-4 px-6 text-left">Pieza / Material</th>
+                  <th className="py-4 px-6 text-left">Mano de Obra</th>
+                  <th className="py-4 px-6 text-left">Pintura / Insumos</th>
+                  <th className="py-4 px-6 text-left">Costo Materiales</th>
+                  <th className="py-4 px-6 text-center">Uso / Rendimiento</th>
+                  <th className="py-4 px-6 text-left">Ganancia Est.</th>
                   <th className="py-4 px-6 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filteredData.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-16 text-center text-gray-400">
+                    <td colSpan={8} className="py-16 text-center text-gray-400">
                       <i className="fas fa-folder-open text-5xl mb-3 opacity-30"></i>
                       <p className="font-semibold text-gray-500">No se encontraron registros</p>
                       <p className="text-xs text-gray-400 mt-1">Pruebe ajustando los filtros de búsqueda</p>
                     </td>
                   </tr>
                 ) : (
-                  filteredData.map((item: any) => (
-                    <tr key={item.id} className="table-row-hover hover:bg-blue-50/5 transition-colors">
-                      <td className="py-4 px-6 text-gray-600 font-mono text-xs">{String(item.id).substring(0,8)}...</td>
-                      <td className="py-4 px-6 font-semibold text-secondary">{item.material_name}</td>
-                      <td className="py-4 px-6 text-gray-500">{item.unit_of_measure}</td>
-                      <td className="py-4 px-6 font-semibold text-secondary">
-                        {item.cost_price ? `$${Number(item.cost_price).toFixed(2)}` : '-'}
-                      </td>
-                      <td className="py-4 px-6 text-gray-600 font-bold">{item.stock_quantity}</td>
-                      <td className="py-4 px-6 text-right">
-                        <div className="flex justify-end gap-1.5">
-                          <button
-                            onClick={() => handleOpenEdit(item)}
-                            className="p-2 text-gray-400 hover:text-primary hover:bg-blue-50 rounded-lg transition"
-                            title="Editar Registro"
-                          >
-                            <i className="fas fa-edit"></i>
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (window.confirm("¿Está seguro de eliminar este registro?")) {
-                                remove(item.id);
-                              }
-                            }}
-                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
-                            title="Eliminar Registro"
-                          >
-                            <i className="fas fa-trash-alt"></i>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                  filteredData.map((item: any) => {
+                    const pieceName = item.piece_name || item.material_name || item.description || 'PIEZA GENERAL';
+                    const details = [
+                      item.filler && `Fondo: ${item.filler}`,
+                      item.hardener && `Cat: ${item.hardener}`,
+                      item.reducer && `Dil: ${item.reducer}`,
+                    ].filter(Boolean).join(" • ");
+
+                    const laborCost = item.labor_cost ?? item.bodywork_price;
+                    const paintCost = item.paint_price;
+                    const materialCost = item.material_cost ?? item.total_cost_per_piece ?? item.cost_price;
+                    const usage = item.material_usage_qty != null ? `${item.material_usage_qty}%` : (item.stock_quantity != null ? `${item.stock_quantity} uds` : (item.sandpaper ? `${item.sandpaper} lijas` : '-'));
+                    const profit = item.labor_and_cost_profit;
+
+                    return (
+                      <tr key={item.id} className="table-row-hover hover:bg-blue-50/5 transition-colors">
+                        <td className="py-4 px-6 text-gray-600 font-mono text-xs">{String(item.id).substring(0,8)}...</td>
+                        <td className="py-4 px-6">
+                          <div>
+                            <span className="font-bold text-secondary uppercase tracking-wide">{pieceName}</span>
+                            {details && (
+                              <p className="text-xs text-gray-400 mt-0.5">{details}</p>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-4 px-6 font-semibold text-gray-700">
+                          {laborCost != null && laborCost !== '' ? `$${Number(laborCost).toFixed(2)}` : '-'}
+                        </td>
+                        <td className="py-4 px-6 text-gray-600">
+                          {paintCost != null && paintCost !== '' ? (
+                            <span>
+                              <span className="font-semibold text-gray-700">${Number(paintCost).toFixed(2)}</span>
+                              {item.paint_amount && <span className="text-xs text-gray-400 ml-1">({item.paint_amount} L)</span>}
+                            </span>
+                          ) : (
+                            item.unit_of_measure || '-'
+                          )}
+                        </td>
+                        <td className="py-4 px-6 font-bold text-primary">
+                          {materialCost != null && materialCost !== '' ? `$${Number(materialCost).toFixed(2)}` : '-'}
+                        </td>
+                        <td className="py-4 px-6 text-center">
+                          <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-blue-50 text-blue-800 border border-blue-100">
+                            {usage}
+                          </span>
+                        </td>
+                        <td className="py-4 px-6 font-semibold text-green-600">
+                          {profit != null && profit !== '' ? `$${Number(profit).toFixed(2)}` : '-'}
+                        </td>
+                        <td className="py-4 px-6 text-right">
+                          <div className="flex justify-end gap-1.5">
+                            <button
+                              onClick={() => handleOpenEdit(item)}
+                              className="p-2 text-gray-400 hover:text-primary hover:bg-blue-50 rounded-lg transition"
+                              title="Editar Registro"
+                            >
+                              <i className="fas fa-edit"></i>
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (window.confirm("¿Está seguro de eliminar este registro?")) {
+                                  remove(item.id);
+                                }
+                              }}
+                              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
+                              title="Eliminar Registro"
+                            >
+                              <i className="fas fa-trash-alt"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
           </div>
 
           {/* Pagination Controls */}
-          {meta && meta.total > 0 && (
+          {meta && (meta.totalElement > 0 || meta.total > 0) && (
             <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between">
               <div className="text-sm text-gray-500">
-                Mostrando página <span className="font-bold text-gray-700">{meta.current_page}</span> de <span className="font-bold text-gray-700">{meta.total}</span>
+                Mostrando página <span className="font-bold text-gray-700">{meta.current_page || page}</span> de <span className="font-bold text-gray-700">{meta.totalElement || 1}</span>
               </div>
               <div className="flex gap-2">
                 <button 
                   onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1}
+                  disabled={page <= 1}
                   className="px-3 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-white hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition text-sm font-medium"
                 >
                   <i className="fas fa-chevron-left mr-1"></i> Anterior
                 </button>
                 <button 
                   onClick={() => setPage(p => p + 1)}
-                  disabled={page >= meta.total}
+                  disabled={page >= (meta.totalElement || 1)}
                   className="px-3 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-white hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition text-sm font-medium"
                 >
                   Siguiente <i className="fas fa-chevron-right ml-1"></i>

@@ -9,17 +9,24 @@ import Clientes from "./pages/Clientes";
 import Vehiculos from "./pages/Vehiculos";
 import Proveedores from "./pages/Proveedores";
 import Empleados from "./pages/Empleados";
-import Ordenes from "./pages/Ordenes";
+import Recepciones from "./pages/Recepciones";
+import HistorialCliente from "./pages/HistorialCliente";
 import Cotizaciones from "./pages/Cotizaciones";
 import Repuestos from "./pages/Repuestos";
+import NotasEntrega from "./pages/NotasEntrega";
+import TarjetasRevision from "./pages/TarjetasRevision";
+import ComprasPendientes from "./pages/ComprasPendientes";
+import Transacciones from "./pages/Transacciones";
+import CuentasCobrar from "./pages/CuentasCobrar";
+import CuentasPagar from "./pages/CuentasPagar";
 import Materiales from "./pages/Materiales";
-import Facturas from "./pages/Facturas";
-import Pagos from "./pages/Pagos";
-import Inventario from "./pages/Inventario";
-import ManoObra from "./pages/ManoObra";
+import Ordenes from "./pages/Ordenes";
 import Peritajes from "./pages/Peritajes";
 import PeritajeForm from "./pages/PeritajeForm";
-import Recepciones from "./pages/Recepciones";
+import ContratosTrabajo from "./pages/ContratosTrabajo";
+import Comunicaciones from "./pages/Comunicaciones";
+import Reportes from "./pages/Reportes";
+import Backup from "./pages/Backup";
 import Usuarios from "./pages/Usuarios";
 
 function App() {
@@ -37,22 +44,43 @@ function App() {
             }
           >
             <Route index element={<DashboardHome />} />
+            
+            {/* Taller */}
             <Route path="clientes" element={<Clientes />} />
-            <Route path="vehiculos" element={<Vehiculos />} />
             <Route path="proveedores" element={<Proveedores />} />
-            <Route path="empleados" element={<Empleados />} />
-            <Route path="ordenes" element={<Ordenes />} />
+            <Route path="vehiculos" element={<Vehiculos />} />
+            <Route path="recepciones" element={<Recepciones />} />
+            <Route path="historial" element={<HistorialCliente />} />
             <Route path="cotizaciones" element={<Cotizaciones />} />
             <Route path="repuestos" element={<Repuestos />} />
+            <Route path="notas-entrega" element={<NotasEntrega />} />
+            <Route path="tarjetas-revision" element={<TarjetasRevision />} />
+            <Route path="compras-pendientes" element={<ComprasPendientes />} />
+
+            {/* Finanzas */}
+            <Route path="transacciones" element={<Transacciones />} />
+            <Route path="cuentas-cobrar" element={<CuentasCobrar />} />
+            <Route path="cuentas-pagar" element={<CuentasPagar />} />
+
+            {/* Latonería */}
             <Route path="materiales" element={<Materiales />} />
-            <Route path="facturas" element={<Facturas />} />
-            <Route path="pagos" element={<Pagos />} />
-            <Route path="inventario" element={<Inventario />} />
-            <Route path="mano-obra" element={<ManoObra />} />
+            <Route path="ordenes" element={<Ordenes />} />
+
+            {/* Peritajes */}
             <Route path="peritajes" element={<Peritajes />} />
             <Route path="peritajes/nuevo" element={<PeritajeForm />} />
             <Route path="peritajes/:id" element={<PeritajeForm />} />
-            <Route path="recepciones" element={<Recepciones />} />
+
+            {/* RRHH */}
+            <Route path="empleados" element={<Empleados />} />
+            <Route path="contratos" element={<ContratosTrabajo />} />
+            <Route path="comunicaciones" element={<Comunicaciones />} />
+
+            {/* Reportes & Backup */}
+            <Route path="reportes" element={<Reportes />} />
+            <Route path="backup" element={<Backup />} />
+
+            {/* Seguridad */}
             <Route path="usuarios" element={<Usuarios />} />
           </Route>
         </Routes>

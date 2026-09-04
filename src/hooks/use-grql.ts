@@ -39,10 +39,12 @@ export function useGrqlList<T extends any[]>(
     setError(null);
     try {
       const result = await getPaginatedEntity<T[number]>(table, query);
-      setData(result.data as T);
+      const list = Array.isArray(result.data) ? result.data : [];
+      setData(list as T);
       setMeta(result.meta);
     } catch (err: any) {
       setError(err.message ?? 'Error al obtener datos');
+      setData([] as unknown as T);
     } finally {
       setLoading(false);
     }
@@ -50,19 +52,19 @@ export function useGrqlList<T extends any[]>(
 
   const create = async (item: Record<string, unknown>): Promise<T[number] | null> => {
     const result = await createEntity<T[number]>(table, item);
-    if (data && result) setData([...data, result] as T);
+    if (Array.isArray(data) && result) setData([...data, result] as T);
     return result;
   };
 
   const update = async (id: string, item: Record<string, unknown>): Promise<T[number] | null> => {
     const result = await updateEntity<T[number]>(table, id, item);
-    if (data && result) setData(data.map((d: any) => (d.id === id ? result : d)) as T);
+    if (Array.isArray(data) && result) setData(data.map((d: any) => (d.id === id ? result : d)) as T);
     return result;
   };
 
   const remove = async (id: string): Promise<void> => {
     await deleteEntity(table, id);
-    if (data) setData(data.filter((d: any) => d.id !== id) as T);
+    if (Array.isArray(data)) setData(data.filter((d: any) => d.id !== id) as T);
   };
 
   useEffect(() => { fetchData(); }, [fetchData]);

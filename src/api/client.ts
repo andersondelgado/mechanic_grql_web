@@ -134,7 +134,8 @@ export async function getEntity<T = any>(
     ...query,
   });
   const response = await workflowJson<WorkflowResponse<T[]>>(request);
-  return extractData<T[]>(response) ?? [];
+  const data = extractData<T[]>(response);
+  return Array.isArray(data) ? data : [];
 }
 
 export async function getPaginatedEntity<T = any>(
@@ -146,7 +147,8 @@ export async function getPaginatedEntity<T = any>(
     ...query,
   });
   const response = await workflowJson<WorkflowResponse<T[]>>(request);
-  return { data: extractData<T[]>(response) ?? [], meta: extractPagination(response) };
+  const data = extractData<T[]>(response);
+  return { data: Array.isArray(data) ? data : [], meta: extractPagination(response) };
 }
 
 export async function getEntityById<T = any>(

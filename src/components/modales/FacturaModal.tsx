@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { createEntity, updateEntity } from "../../api/client";
+import { useGrqlList } from "../../hooks/use-grql";
 
 interface FacturaModalProps {
   isOpen: boolean;
@@ -9,16 +10,51 @@ interface FacturaModalProps {
 }
 
 export default function FacturaModal({ isOpen, onClose, onSuccess, factura }: FacturaModalProps) {
-  const [formData, setFormData] = useState<any>({});
+  const [formData, setFormData] = useState<any>({
+    transaction_date: new Date().toISOString().split('T')[0],
+    debit: 0,
+    credit: 0,
+    balance: 0
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const { data: clientes } = useGrqlList<any[]>("GestionTallerProd_clients");
 
   useEffect(() => {
     if (isOpen) {
       if (factura) {
-        setFormData(factura);
+        let clientId = factura.clients_fk_id;
+        if (Array.isArray(clientId) && clientId.length > 0) {
+          clientId = typeof clientId[0] === 'object' ? (clientId[0].id || clientId[0].client_id) : clientId[0];
+        } else if (!clientId && Array.isArray(factura.clients) && factura.clients.length > 0) {
+          clientId = factura.clients[0]?.id || factura.clients[0]?.client_id;
+        }
+
+        const rawDate = factura.transaction_date || factura.created_at || '';
+        const transactionDate = rawDate ? String(rawDate).replace(' ', 'T').split('T')[0] : new Date().toISOString().split('T')[0];
+
+        const debit = parseFloat(factura.debit) || 0;
+        const credit = parseFloat(factura.credit) || 0;
+        const balance = factura.balance != null ? parseFloat(factura.balance) : (debit - credit);
+
+        setFormData({
+          ...factura,
+          clients_fk_id: clientId || '',
+          transaction_date: transactionDate,
+          description: factura.description || '',
+          debit: debit,
+          credit: credit,
+          balance: balance
+        });
       } else {
-        setFormData({});
+        setFormData({
+          transaction_date: new Date().toISOString().split('T')[0],
+          debit: 0,
+          credit: 0,
+          balance: 0,
+          description: ''
+        });
       }
       setError(null);
     }
@@ -28,7 +64,6 @@ export default function FacturaModal({ isOpen, onClose, onSuccess, factura }: Fa
 
   const handleFieldChange = (field: string, value: any) => {
     const newData = { ...formData, [field]: value };
-    // Auto-calculate balance
     const debit = parseFloat(newData.debit) || 0;
     const credit = parseFloat(newData.credit) || 0;
     newData.balance = debit - credit;
@@ -86,15 +121,20 @@ export default function FacturaModal({ isOpen, onClose, onSuccess, factura }: Fa
             
             <div className="grid grid-cols-1 gap-5">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Cliente ID *</label>
-                <input 
-                  type="text" 
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Cliente *</label>
+                <select 
                   required
                   value={formData.clients_fk_id || ""} 
                   onChange={e => handleFieldChange("clients_fk_id", e.target.value)} 
-                  placeholder="ID del cliente" 
-                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm font-mono" 
-                />
+                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm bg-white font-medium"
+                >
+                  <option value="">Seleccionar cliente...</option>
+                  {clientes?.map((c: any) => (
+                    <option key={c.id || c.client_id} value={c.id || c.client_id}>
+                      {c.client_name} {c.tax_id ? `(${c.tax_id})` : ''}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
@@ -102,7 +142,7 @@ export default function FacturaModal({ isOpen, onClose, onSuccess, factura }: Fa
                 <input 
                   type="date" 
                   required
-                  value={formData.transaction_date ? String(formData.transaction_date).split('T')[0] : ""} 
+                  value={formData.transaction_date || ""} 
                   onChange={e => handleFieldChange("transaction_date", e.target.value)} 
                   className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm" 
                 />
@@ -145,15 +185,19 @@ export default function FacturaModal({ isOpen, onClose, onSuccess, factura }: Fa
                   />
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Balance Calculado</label>
-                <div className="w-full px-4 py-2.5 bg-gray-50 border-2 border-gray-200 rounded-xl text-sm font-bold text-gray-500">
-                  ${Number(formData.balance || 0).toFixed(2)}
-                </div>
+                <input 
+                  type="text" 
+                  readOnly 
+                  value={formData.balance != null ? `$${Number(formData.balance).toFixed(2)}` : "$0.00"} 
+                  className="w-full px-4 py-2.5 bg-gray-50 border-2 border-gray-200 rounded-xl text-gray-700 font-bold text-sm cursor-not-allowed outline-none" 
+                />
               </div>
             </div>
           </div>
+          
           <div className="p-6 border-t border-gray-100 flex justify-end gap-3 bg-gray-50 rounded-b-3xl">
             <button type="button" onClick={onClose} disabled={loading} className="px-5 py-2.5 border-2 border-gray-200 text-gray-700 rounded-xl hover:bg-gray-100 transition font-bold text-sm bg-white">
               Cancelar

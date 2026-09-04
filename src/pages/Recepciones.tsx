@@ -38,9 +38,23 @@ export default function Recepciones() {
     );
   }
 
-  const filteredData = data?.filter((item: any) => {
-    return Object.values(item).some(
-      (val) => val && String(val).toLowerCase().includes(searchTerm.toLowerCase())
+  const list = Array.isArray(data) ? data : [];
+  const filteredData = list.filter((item: any) => {
+    const client = item.clients?.[0];
+    const clientName = client?.client_name || item.owner_name || item.client_name || '';
+    const vehicle = item.vehicles?.[0];
+    const plate = vehicle?.license_plate || item.license_plate || '';
+    const brandModel = vehicle ? `${vehicle.brand || ''} ${vehicle.model || ''}` : `${item.brand || ''} ${item.model || ''}`;
+    const term = searchTerm.toLowerCase();
+
+    return (
+      clientName.toLowerCase().includes(term) ||
+      plate.toLowerCase().includes(term) ||
+      brandModel.toLowerCase().includes(term) ||
+      (item.owner_phone && String(item.owner_phone).includes(term)) ||
+      Object.values(item).some(
+        (val) => val && typeof val === "string" && val.toLowerCase().includes(term)
+      )
     );
   }) ?? [];
 
@@ -64,7 +78,7 @@ export default function Recepciones() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-secondary leading-tight">Fichas de Recepción</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Entrada de vehículos al taller • <span className="font-semibold text-primary">{meta?.totalElement ?? filteredData.length} en total</span></p>
+            <p className="text-sm text-gray-500 mt-0.5">Entrada de vehículos al taller • <span className="font-semibold text-primary">{meta?.total ?? filteredData.length} en total</span></p>
           </div>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
@@ -74,17 +88,17 @@ export default function Recepciones() {
             </span>
             <input
               type="text"
-              placeholder="Buscar registros..."
+              placeholder="Buscar por cliente, placa o teléfono..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full sm:w-60 pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm"
+              className="w-full sm:w-64 pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm"
             />
           </div>
           <button
             onClick={handleOpenNew}
             className="px-5 py-2.5 bg-gradient-to-r from-primary to-blue-600 text-white rounded-xl hover:shadow-lg transform hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 shadow-soft font-bold text-sm"
           >
-            <i className="fas fa-plus"></i> Nuevo Registro
+            <i className="fas fa-plus"></i> Nueva Recepción
           </button>
         </div>
       </div>
@@ -96,13 +110,13 @@ export default function Recepciones() {
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/70 text-gray-500 font-bold uppercase text-[11px] tracking-wider">
-                  <th className="py-4 px-6 text-left">ID</th>
-                  <th className="py-4 px-6 text-left">Vehículo ID</th>
+                  <th className="py-4 px-6 text-left"># Ficha</th>
+                  <th className="py-4 px-6 text-left">Vehículo / Placa</th>
                   <th className="py-4 px-6 text-left">Fecha Entrada</th>
-                  <th className="py-4 px-6 text-left">Propietario</th>
+                  <th className="py-4 px-6 text-left">Cliente / Propietario</th>
                   <th className="py-4 px-6 text-left">Teléfono</th>
                   <th className="py-4 px-6 text-left">Combustible</th>
-                  <th className="py-4 px-6 text-left">Estado</th>
+                  <th className="py-4 px-6 text-center">Estado</th>
                   <th className="py-4 px-6 text-right">Acciones</th>
                 </tr>
               </thead>
@@ -116,68 +130,95 @@ export default function Recepciones() {
                     </td>
                   </tr>
                 ) : (
-                  filteredData.map((item: any) => (
-                    <tr key={item.id} className="table-row-hover hover:bg-blue-50/5 transition-colors">
-                      <td className="py-4 px-6 text-gray-600 font-mono text-xs">{String(item.id).substring(0,8)}...</td>
-                      <td className="py-4 px-6 text-gray-500 font-mono text-xs">{item.vehicles_fk_id}</td>
-                      <td className="py-4 px-6 text-gray-600">{item.entry_date}</td>
-                      <td className="py-4 px-6 font-semibold text-secondary">{item.owner_name}</td>
-                      <td className="py-4 px-6 text-gray-600">{item.owner_phone}</td>
-                      <td className="py-4 px-6 text-gray-500">{item.fuel_level || '-'}</td>
-                      <td className="py-4 px-6">
-                        <span className={`px-2.5 py-1 text-xs font-bold rounded-full uppercase ${
-                          item.status === 'entregado' ? 'bg-green-100 text-green-800' :
-                          item.status === 'proceso' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {item.status || 'proceso'}
-                        </span>
-                      </td>
-                      <td className="py-4 px-6 text-right">
-                        <div className="flex justify-end gap-1.5">
-                          <button
-                            onClick={() => handleOpenEdit(item)}
-                            className="p-2 text-gray-400 hover:text-primary hover:bg-blue-50 rounded-lg transition"
-                            title="Editar Registro"
-                          >
-                            <i className="fas fa-edit"></i>
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (window.confirm("¿Está seguro de eliminar este registro?")) {
-                                remove(item.id);
-                              }
-                            }}
-                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
-                            title="Eliminar Registro"
-                          >
-                            <i className="fas fa-trash-alt"></i>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                  filteredData.map((item: any) => {
+                    const client = item.clients?.[0];
+                    const clientName = client?.client_name || item.owner_name || item.client_name || "-";
+                    const clientPhone = client?.cell_phone || item.owner_phone || "-";
+                    const vehicle = item.vehicles?.[0];
+                    const plate = vehicle?.license_plate || item.license_plate;
+                    const vehicleDesc = vehicle
+                      ? `${vehicle.brand || ""} ${vehicle.model || ""}`.trim()
+                      : `${item.brand || ""} ${item.model || ""}`.trim();
+                    const entryDate = item.entry_date
+                      ? (item.entry_date.includes("T") ? item.entry_date.split("T")[0] : item.entry_date.split(" ")[0])
+                      : "-";
+
+                    return (
+                      <tr key={item.id} className="table-row-hover hover:bg-blue-50/5 transition-colors">
+                        <td className="py-4 px-6 font-bold text-primary font-mono text-xs">
+                          {item.receipt_number || `REC-${String(item.id).substring(0, 6)}`}
+                        </td>
+                        <td className="py-4 px-6">
+                          {plate ? (
+                            <div>
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold font-mono bg-blue-50 text-blue-700 border border-blue-200">
+                                {plate}
+                              </span>
+                              {vehicleDesc && <p className="text-xs text-gray-500 mt-0.5">{vehicleDesc}</p>}
+                            </div>
+                          ) : (
+                            vehicleDesc || "-"
+                          )}
+                        </td>
+                        <td className="py-4 px-6 text-gray-600">{entryDate}</td>
+                        <td className="py-4 px-6 font-semibold text-secondary">{clientName}</td>
+                        <td className="py-4 px-6 text-gray-600 font-mono text-xs">{clientPhone}</td>
+                        <td className="py-4 px-6 text-gray-500">{item.fuel_level || '-'}</td>
+                        <td className="py-4 px-6 text-center">
+                          <span className={`px-2.5 py-1 text-xs font-bold rounded-full uppercase ${
+                            item.status === 'entregado' ? 'bg-green-100 text-green-800' :
+                            item.status === 'proceso' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                          }`}>
+                            {item.status || 'proceso'}
+                          </span>
+                        </td>
+                        <td className="py-4 px-6 text-right">
+                          <div className="flex justify-end gap-1.5">
+                            <button
+                              onClick={() => handleOpenEdit(item)}
+                              className="p-2 text-gray-400 hover:text-primary hover:bg-blue-50 rounded-lg transition"
+                              title="Editar Registro"
+                            >
+                              <i className="fas fa-edit"></i>
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (window.confirm("¿Está seguro de eliminar este registro?")) {
+                                  remove(item.id);
+                                }
+                              }}
+                              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
+                              title="Eliminar Registro"
+                            >
+                              <i className="fas fa-trash-alt"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
           </div>
 
           {/* Pagination Controls */}
-          {meta && meta.total > 0 && (
+          {meta && (meta.totalElement > 0 || meta.total > 0) && (
             <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between">
               <div className="text-sm text-gray-500">
-                Mostrando página <span className="font-bold text-gray-700">{meta.current_page}</span> de <span className="font-bold text-gray-700">{meta.total}</span>
+                Mostrando página <span className="font-bold text-gray-700">{meta.current_page || page}</span> de <span className="font-bold text-gray-700">{meta.totalElement || 1}</span>
               </div>
               <div className="flex gap-2">
                 <button 
                   onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1}
+                  disabled={page <= 1}
                   className="px-3 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-white hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition text-sm font-medium"
                 >
                   <i className="fas fa-chevron-left mr-1"></i> Anterior
                 </button>
                 <button 
                   onClick={() => setPage(p => p + 1)}
-                  disabled={page >= meta.total}
+                  disabled={page >= (meta.totalElement || 1)}
                   className="px-3 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-white hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition text-sm font-medium"
                 >
                   Siguiente <i className="fas fa-chevron-right ml-1"></i>

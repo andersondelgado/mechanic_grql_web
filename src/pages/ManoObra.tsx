@@ -38,11 +38,13 @@ export default function ManoObra() {
     );
   }
 
-  const filteredData = data?.filter((item: any) => {
-    return Object.values(item).some(
-      (val) => val && String(val).toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }) ?? [];
+  const list = Array.isArray(data) ? data : [];
+  const filteredData = list.filter((item: any) => {
+    const emp = item.employees?.[0];
+    const empStr = emp ? `${emp.first_name || ''} ${emp.last_name || ''} ${emp.id_card || ''} ${emp.job_title || ''}` : '';
+    const searchable = `${Object.values(item).filter(v => typeof v !== 'object').join(" ")} ${empStr}`.toLowerCase();
+    return searchable.includes(searchTerm.toLowerCase());
+  });
 
   const handleOpenNew = () => {
     setSelectedManoObra(null);
@@ -64,7 +66,7 @@ export default function ManoObra() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-secondary leading-tight">Mano de Obra y Contratos</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Asignación de costos por labor • <span className="font-semibold text-primary">{meta?.totalElement ?? filteredData.length} en total</span></p>
+            <p className="text-sm text-gray-500 mt-0.5">Asignación de costos por labor • <span className="font-semibold text-primary">{meta?.total ?? filteredData.length} en total</span></p>
           </div>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
@@ -74,7 +76,7 @@ export default function ManoObra() {
             </span>
             <input
               type="text"
-              placeholder="Buscar registros..."
+              placeholder="Buscar por empleado, contrato..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full sm:w-60 pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm"
@@ -97,7 +99,7 @@ export default function ManoObra() {
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/70 text-gray-500 font-bold uppercase text-[11px] tracking-wider">
                   <th className="py-4 px-6 text-left">ID</th>
-                  <th className="py-4 px-6 text-left">Empleado ID</th>
+                  <th className="py-4 px-6 text-left">Empleado</th>
                   <th className="py-4 px-6 text-left">Fecha Inicio</th>
                   <th className="py-4 px-6 text-left">Tipo Contrato</th>
                   <th className="py-4 px-6 text-left">Salario Base</th>
@@ -114,61 +116,84 @@ export default function ManoObra() {
                     </td>
                   </tr>
                 ) : (
-                  filteredData.map((item: any) => (
-                    <tr key={item.id} className="table-row-hover hover:bg-blue-50/5 transition-colors">
-                      <td className="py-4 px-6 text-gray-600 font-mono text-xs">{String(item.id).substring(0,8)}...</td>
-                      <td className="py-4 px-6 text-gray-500 font-mono text-xs">{item.employees_fk_id}</td>
-                      <td className="py-4 px-6 text-gray-600">{item.start_date}</td>
-                      <td className="py-4 px-6 text-gray-500 uppercase">{item.contract_type}</td>
-                      <td className="py-4 px-6 font-bold text-secondary">
-                        {item.salary ? `$${Number(item.salary).toFixed(2)}` : '-'}
-                      </td>
-                      <td className="py-4 px-6 text-right">
-                        <div className="flex justify-end gap-1.5">
-                          <button
-                            onClick={() => handleOpenEdit(item)}
-                            className="p-2 text-gray-400 hover:text-primary hover:bg-blue-50 rounded-lg transition"
-                            title="Editar Registro"
-                          >
-                            <i className="fas fa-edit"></i>
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (window.confirm("¿Está seguro de eliminar este registro?")) {
-                                remove(item.id);
-                              }
-                            }}
-                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
-                            title="Eliminar Registro"
-                          >
-                            <i className="fas fa-trash-alt"></i>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                  filteredData.map((item: any) => {
+                    const emp = item.employees?.[0];
+                    const empName = emp ? `${emp.first_name || ''} ${emp.last_name || ''}`.trim() : (item.employee_name || item.assigned_mechanic || item.first_name);
+                    const empIdCard = emp?.id_card || item.id_card || emp?.tax_id || "";
+                    const empJob = emp?.job_title || item.job_title || "";
+
+                    return (
+                      <tr key={item.id} className="table-row-hover hover:bg-blue-50/5 transition-colors">
+                        <td className="py-4 px-6 text-gray-600 font-mono text-xs">{String(item.id).substring(0,8)}...</td>
+                        <td className="py-4 px-6">
+                          {empName ? (
+                            <div>
+                              <div className="font-semibold text-secondary">{empName}</div>
+                              {(empIdCard || empJob) && (
+                                <div className="text-xs text-gray-400">
+                                  {empIdCard && <span className="font-mono">{empIdCard} </span>}
+                                  {empJob && <span>• {empJob}</span>}
+                                </div>
+                              )}
+                            </div>
+                          ) : item.employees_fk_id ? (
+                            <span className="text-gray-400 font-mono text-xs">{String(item.employees_fk_id).substring(0,8)}...</span>
+                          ) : (
+                            <span className="text-gray-400 text-xs">—</span>
+                          )}
+                        </td>
+                        <td className="py-4 px-6 text-gray-600">{item.start_date ? String(item.start_date).substring(0, 10) : '—'}</td>
+                        <td className="py-4 px-6 text-gray-500 uppercase">{item.contract_type}</td>
+                        <td className="py-4 px-6 font-bold text-secondary">
+                          {item.salary ? `$${Number(item.salary).toFixed(2)}` : '-'}
+                        </td>
+                        <td className="py-4 px-6 text-right">
+                          <div className="flex justify-end gap-1.5">
+                            <button
+                              onClick={() => handleOpenEdit(item)}
+                              className="p-2 text-gray-400 hover:text-primary hover:bg-blue-50 rounded-lg transition"
+                              title="Editar Registro"
+                            >
+                              <i className="fas fa-edit"></i>
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (window.confirm("¿Está seguro de eliminar este registro?")) {
+                                  remove(item.id);
+                                }
+                              }}
+                              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
+                              title="Eliminar Registro"
+                            >
+                              <i className="fas fa-trash-alt"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
           </div>
 
           {/* Pagination Controls */}
-          {meta && meta.total > 0 && (
+          {meta && (meta.totalElement > 0 || meta.total > 0) && (
             <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between">
               <div className="text-sm text-gray-500">
-                Mostrando página <span className="font-bold text-gray-700">{meta.current_page}</span> de <span className="font-bold text-gray-700">{meta.total}</span>
+                Mostrando página <span className="font-bold text-gray-700">{meta.current_page || page}</span> de <span className="font-bold text-gray-700">{meta.totalElement || 1}</span>
               </div>
               <div className="flex gap-2">
                 <button 
                   onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1}
+                  disabled={page <= 1}
                   className="px-3 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-white hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition text-sm font-medium"
                 >
                   <i className="fas fa-chevron-left mr-1"></i> Anterior
                 </button>
                 <button 
                   onClick={() => setPage(p => p + 1)}
-                  disabled={page >= meta.total}
+                  disabled={page >= (meta.totalElement || 1)}
                   className="px-3 py-1.5 border border-gray-200 rounded-lg text-gray-600 hover:bg-white hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition text-sm font-medium"
                 >
                   Siguiente <i className="fas fa-chevron-right ml-1"></i>
