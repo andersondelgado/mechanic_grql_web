@@ -41,7 +41,7 @@ export default function ManoObra() {
   const list = Array.isArray(data) ? data : [];
   const filteredData = list.filter((item: any) => {
     const emp = item.employees?.[0];
-    const empStr = emp ? `${emp.first_name || ''} ${emp.last_name || ''} ${emp.id_card || ''} ${emp.job_title || ''}` : '';
+    const empStr = emp ? `${emp.employee_name || ''} ${emp.first_name || ''} ${emp.last_name || ''} ${emp.id_card || ''} ${emp.tax_id || ''} ${emp.job_title || ''} ${emp.position || ''}` : `${item.employee_name || item.assigned_mechanic || ''}`;
     const searchable = `${Object.values(item).filter(v => typeof v !== 'object').join(" ")} ${empStr}`.toLowerCase();
     return searchable.includes(searchTerm.toLowerCase());
   });
@@ -118,9 +118,9 @@ export default function ManoObra() {
                 ) : (
                   filteredData.map((item: any) => {
                     const emp = item.employees?.[0];
-                    const empName = emp ? `${emp.first_name || ''} ${emp.last_name || ''}`.trim() : (item.employee_name || item.assigned_mechanic || item.first_name);
-                    const empIdCard = emp?.id_card || item.id_card || emp?.tax_id || "";
-                    const empJob = emp?.job_title || item.job_title || "";
+                    const empName = emp?.employee_name || `${emp?.first_name || ''} ${emp?.last_name || ''}`.trim() || item.employee_name || item.assigned_mechanic || item.first_name || '';
+                    const empIdCard = emp?.tax_id || emp?.id_card || item.id_card || "";
+                    const empJob = emp?.position || emp?.job_title || item.job_title || "";
 
                     return (
                       <tr key={item.id} className="table-row-hover hover:bg-blue-50/5 transition-colors">

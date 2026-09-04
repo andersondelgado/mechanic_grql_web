@@ -28,7 +28,7 @@ export default function HistorialCliente() {
     const vehicle = item.vehicles?.[0];
     const vehicleStr = vehicle ? `${vehicle.brand || ''} ${vehicle.model || ''} ${vehicle.license_plate || ''}` : '';
     const emp = item.employees?.[0];
-    const empStr = emp ? `${emp.first_name || ''} ${emp.last_name || ''}` : '';
+    const empStr = emp ? `${emp.employee_name || ''} ${emp.first_name || ''} ${emp.last_name || ''} ${emp.tax_id || ''} ${emp.position || ''}` : `${item.assigned_mechanic || ''}`;
     const searchable = `${Object.values(item).filter(v => typeof v !== 'object').join(" ")} ${vehicleStr} ${empStr}`.toLowerCase();
     return searchable.includes(searchTerm.toLowerCase());
   });
@@ -113,7 +113,9 @@ export default function HistorialCliente() {
                   const vehicleDesc = vehicle ? `${vehicle.brand || ""} ${vehicle.model || ""}`.trim() : `${row.brand || ""} ${row.model || ""}`.trim();
 
                   const emp = row.employees?.[0];
-                  const empName = emp ? `${emp.first_name || ''} ${emp.last_name || ''}`.trim() : (row.assigned_mechanic || row.mechanic_name || '—');
+                  const empName = emp?.employee_name || `${emp?.first_name || ''} ${emp?.last_name || ''}`.trim() || row.assigned_mechanic || row.mechanic_name || '';
+                  const empPosition = emp?.position || emp?.job_title || '';
+                  const empTaxId = emp?.tax_id || emp?.id_card || '';
 
                   return (
                     <tr key={row.id || row.history_id} className="hover:bg-gray-50/70 transition-colors">
@@ -141,8 +143,20 @@ export default function HistorialCliente() {
                       <td className="py-4 px-6 font-semibold text-secondary max-w-xs truncate">
                         {row.work_performed || 'Mantenimiento General'}
                       </td>
-                      <td className="py-4 px-6 text-gray-600">
-                        {empName}
+                      <td className="py-4 px-6">
+                        {empName ? (
+                          <div>
+                            <div className="font-semibold text-secondary">{empName}</div>
+                            {(empTaxId || empPosition) && (
+                              <div className="text-xs text-gray-400">
+                                {empTaxId && <span className="font-mono">{empTaxId} </span>}
+                                {empPosition && <span>• {empPosition}</span>}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-xs">—</span>
+                        )}
                       </td>
                       <td className="py-4 px-6 text-gray-500">
                         {row.time_in_shop || '—'}
