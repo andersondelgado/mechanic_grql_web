@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useGrqlList } from "../hooks/use-grql";
-import RecepcionModal from "../components/modales/RecepcionModal";
+import RecepcionWizardModal from "../components/recepcion/RecepcionWizardModal";
+import PrintableReceiptSheet from "../components/recepcion/PrintableReceiptSheet";
 
 export default function Recepciones() {
   const [page, setPage] = useState(1);
@@ -12,6 +13,7 @@ export default function Recepciones() {
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRecepcion, setSelectedRecepcion] = useState<any>(null);
+  const [printRecepcion, setPrintRecepcion] = useState<any>(null);
 
   if (loading && !data) {
     return (
@@ -175,6 +177,13 @@ export default function Recepciones() {
                         <td className="py-4 px-6 text-right">
                           <div className="flex justify-end gap-1.5">
                             <button
+                              onClick={() => setPrintRecepcion(item)}
+                              className="p-2 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition"
+                              title="Imprimir / Ver Ficha PDF"
+                            >
+                              <i className="fas fa-print"></i>
+                            </button>
+                            <button
                               onClick={() => handleOpenEdit(item)}
                               className="p-2 text-gray-400 hover:text-primary hover:bg-blue-50 rounded-lg transition"
                               title="Editar Registro"
@@ -229,12 +238,19 @@ export default function Recepciones() {
         </div>
       </div>
       
-      <RecepcionModal 
+      <RecepcionWizardModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
         onSuccess={() => refetch()} 
         recepcion={selectedRecepcion} 
       />
+
+      {printRecepcion && (
+        <PrintableReceiptSheet
+          receipt={printRecepcion}
+          onClose={() => setPrintRecepcion(null)}
+        />
+      )}
     </div>
   );
 }

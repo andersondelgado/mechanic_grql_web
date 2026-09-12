@@ -20,7 +20,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const storedToken = localStorage.getItem("token");
+    const storedToken = localStorage.getItem("lambdaToken") || localStorage.getItem("token");
     const storedUser = localStorage.getItem("user");
     if (storedToken && storedUser) {
       setToken(storedToken);
@@ -87,6 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const userObj: AuthUser = {
           id: userId || "admin",
           email: username,
+          username: username,
           nombre: username.split('@')[0],
           rol: "admin",
           owner: localStorage.getItem("owner") || "default"
@@ -95,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(userObj);
         setToken(t);
         localStorage.setItem("lambdaToken", t);
-        // if (lambdaToken) localStorage.setItem("lambdaToken", lambdaToken);
+        localStorage.setItem("token", t);
         localStorage.setItem("user", JSON.stringify(userObj));
       } else {
         throw new Error(data?.error ?? "Login fallido: estructura de respuesta inválida");

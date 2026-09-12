@@ -14,3 +14,4 @@ export * from './employee.service';
 export * from './inspection.service';
 export * from './security.service';
 export * from './stats.service';
+export * from './apiClient';

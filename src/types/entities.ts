@@ -40,10 +40,28 @@ export interface Vehicle extends BaseEntity {
   vehicle_type?: string;
 }
 
+export interface ChecklistItem {
+  id: string;
+  name: string;
+  status: 'ok' | 'bad' | 'na';
+  notes?: string;
+}
+
+export interface DamagePoint {
+  id: string;
+  view: 'front' | 'back' | 'left' | 'right' | 'top';
+  x: number; // percentage 0-100
+  y: number; // percentage 0-100
+  type: 'scratch' | 'dent' | 'broken' | 'missing';
+  notes?: string;
+}
+
 export interface VehicleReceipt extends BaseEntity {
   receipt_id?: string;
+  receipt_number?: string;
   vehicles_fk_id?: string;
   employees_fk_id?: string;
+  clients_fk_id?: string;
   entry_date: string;
   owner_name?: string;
   owner_tax_id?: string;
@@ -68,7 +86,15 @@ export interface VehicleReceipt extends BaseEntity {
   pending_issues?: string;
   delivery_date?: string;
   expected_return_date?: string;
+  fuel_level?: string;
   status?: string;
+  observations?: string;
+  checklist_external?: ChecklistItem[] | Record<string, any>;
+  checklist_internal?: ChecklistItem[] | Record<string, any>;
+  damage_points?: DamagePoint[];
+  authorized_services?: string;
+  client_signature?: string;
+  mechanic_signature?: string;
 }
 
 export interface ClientHistory extends BaseEntity {
@@ -232,6 +258,9 @@ export interface DeliveryNoteItem extends BaseEntity {
 export interface InspectionCard extends BaseEntity {
   card_id?: string;
   vehicles_fk_id?: string;
+  clients_fk_id?: string;
+  status?: string;
+  cost_estimate?: number;
   inspection_type: string;
   inspection_date: string;
   item_name?: string;
@@ -333,7 +362,7 @@ export interface InspectionAnalysis extends BaseEntity {
   inspection_cards_fk_id?: string;
   inspection_video_fk_id?: string;
   damage_type?: string;
-  damage_severity?: 'leve' | 'moderado' | 'severo';
+  damage_severity?: 'leve' | 'moderado' | 'severo' | 'alto' | 'medio' | 'bajo' | 'high' | 'medium' | 'low' | string;
   affected_parts?: string[];
   repair_estimated_hours?: number;
   parts_needed?: string[];
@@ -341,6 +370,15 @@ export interface InspectionAnalysis extends BaseEntity {
   observations?: string;
   recommended_actions?: string[];
   status?: string;
+}
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  nombre: string;
+  username?: string;
+  rol: string;
+  owner: string;
 }
 
 export interface MonthlyBreakdown {

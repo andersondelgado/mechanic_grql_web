@@ -448,7 +448,7 @@ export default function PeritajeForm() {
               <i className="fas fa-brain text-purple-600"></i> Resultados del Análisis Gemini 2.5 Pro
             </h3>
             <div className="px-3 py-1 bg-purple-50 text-purple-700 rounded-full font-bold text-xs border border-purple-200 flex items-center gap-1.5">
-              <i className="fas fa-circle-check"></i> Confianza: {Math.round(analysisResult.confidence_score * 100)}%
+              <i className="fas fa-circle-check"></i> Confianza: {Math.round((analysisResult.confidence_score ?? 0) * 100)}%
             </div>
           </div>
 
@@ -456,7 +456,7 @@ export default function PeritajeForm() {
             <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
               <span className="text-xs text-gray-500 font-semibold uppercase">Tipo de Daño</span>
               <p className="text-base font-bold text-secondary capitalize mt-1">
-                {analysisResult.damage_type.replace(/_/g, " ")}
+                {(analysisResult.damage_type ?? "").replace(/_/g, " ")}
               </p>
             </div>
             <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
