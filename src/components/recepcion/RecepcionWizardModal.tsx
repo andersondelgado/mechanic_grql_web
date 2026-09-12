@@ -27,10 +27,16 @@ export const RecepcionWizardModal: React.FC<RecepcionWizardModalProps> = ({
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [savedReceiptData, setSavedReceiptData] = useState<VehicleReceipt | null>(null);
 
+  // Search and auto-registration state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchDropdownOpen, setIsSearchDropdownOpen] = useState(false);
+  const [isNewClient, setIsNewClient] = useState(false);
+  const [isNewVehicle, setIsNewVehicle] = useState(false);
+
   // Entities lists
-  const { data: vehiculos } = useGrqlList<any[]>('GestionTallerProd_vehicles');
+  const { data: vehiculos, refetch: refreshVehiculos } = useGrqlList<any[]>('GestionTallerProd_vehicles');
   const { data: empleados } = useGrqlList<any[]>('GestionTallerProd_employees');
-  const { data: clientes } = useGrqlList<any[]>('GestionTallerProd_clients');
+  const { data: clientes, refetch: refreshClientes } = useGrqlList<any[]>('GestionTallerProd_clients');
 
   // Form State
   const [formData, setFormData] = useState<VehicleReceipt>({
@@ -38,11 +44,13 @@ export const RecepcionWizardModal: React.FC<RecepcionWizardModalProps> = ({
     license_plate: '',
     brand: '',
     model: '',
+    year: new Date().getFullYear(),
     color: '',
     mileage: '',
     owner_name: '',
     owner_tax_id: '',
     phone: '',
+    email: '',
     address: '',
     fuel_level: '1/2',
     status: 'proceso',
@@ -99,18 +107,28 @@ export const RecepcionWizardModal: React.FC<RecepcionWizardModalProps> = ({
           vId = vehicle?.id || vehicle?.vehicle_id || '';
         }
 
+        let cId = recepcion.clients_fk_id;
+        if (Array.isArray(cId) && cId.length > 0) {
+          cId = typeof cId[0] === 'object' ? (cId[0].id || cId[0].client_id) : cId[0];
+        } else if (!cId) {
+          cId = client?.id || client?.client_id || '';
+        }
+
         setFormData({
           ...recepcion,
           vehicles_fk_id: vId || '',
+          clients_fk_id: cId || '',
           entry_date: entryDate,
           license_plate: recepcion.license_plate || vehicle?.license_plate || '',
           brand: recepcion.brand || vehicle?.brand || '',
           model: recepcion.model || vehicle?.model || '',
+          year: recepcion.year || vehicle?.year || '',
           color: recepcion.color || vehicle?.color || '',
           mileage: recepcion.mileage || vehicle?.mileage || '',
           owner_name: recepcion.owner_name || client?.client_name || '',
           owner_tax_id: recepcion.owner_tax_id || client?.tax_id || '',
           phone: recepcion.phone || recepcion.owner_phone || client?.cell_phone || '',
+          email: recepcion.email || client?.email || '',
           address: recepcion.address || client?.address || '',
           fuel_level: recepcion.fuel_level || '1/2',
           status: recepcion.status || 'proceso',
@@ -123,6 +141,8 @@ export const RecepcionWizardModal: React.FC<RecepcionWizardModalProps> = ({
           client_signature: recepcion.client_signature || '',
           mechanic_signature: recepcion.mechanic_signature || ''
         });
+        setIsNewClient(false);
+        setIsNewVehicle(false);
       } else {
         // Brand new reception: pre-populate defaults
         const defaultExt: ChecklistItem[] = EXTERNAL_GROUPS.flatMap(g => g.items).map(name => ({
@@ -141,11 +161,13 @@ export const RecepcionWizardModal: React.FC<RecepcionWizardModalProps> = ({
           license_plate: '',
           brand: '',
           model: '',
+          year: new Date().getFullYear(),
           color: '',
           mileage: '',
           owner_name: '',
           owner_tax_id: '',
           phone: '',
+          email: '',
           address: '',
           fuel_level: '1/2',
           status: 'proceso',
@@ -162,14 +184,40 @@ export const RecepcionWizardModal: React.FC<RecepcionWizardModalProps> = ({
           client_signature: '',
           mechanic_signature: ''
         });
+        setIsNewClient(false);
+        setIsNewVehicle(false);
       }
       setCurrentStep(1);
       setError(null);
       setShowPrintModal(false);
+      setSearchQuery('');
+      setIsSearchDropdownOpen(false);
     }
   }, [isOpen, recepcion]);
 
   if (!isOpen) return null;
+
+  // Handle Client Selection
+  const handleClientSelect = (clientId: string) => {
+    const selectedClient = clientes?.find((c: any) => (c.id === clientId || c.client_id === clientId));
+    if (!selectedClient) {
+      setFormData(prev => ({ ...prev, clients_fk_id: clientId }));
+      return;
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      clients_fk_id: clientId,
+      owner_name: selectedClient.client_name || prev.owner_name,
+      owner_tax_id: selectedClient.tax_id || prev.owner_tax_id,
+      phone: selectedClient.cell_phone || selectedClient.home_phone || prev.phone,
+      email: selectedClient.email || prev.email,
+      address: selectedClient.address || prev.address,
+      delivered_by: selectedClient.client_name || prev.delivered_by
+    }));
+    setIsNewClient(false);
+    setIsSearchDropdownOpen(false);
+  };
 
   // Handle Vehicle Selection and Auto-filling
   const handleVehicleSelect = (vehicleId: string) => {
@@ -180,7 +228,7 @@ export const RecepcionWizardModal: React.FC<RecepcionWizardModalProps> = ({
     }
 
     const client = selectedVeh.clients?.[0];
-    const clientFound = clientes?.find((c: any) => c.id === selectedVeh.clients_fk_id || c.client_id === selectedVeh.clients_fk_id);
+    const clientFound = clientes?.find((c: any) => (c.id === selectedVeh.clients_fk_id || c.client_id === selectedVeh.clients_fk_id));
     const activeClient = client || clientFound;
 
     setFormData(prev => ({
@@ -189,27 +237,46 @@ export const RecepcionWizardModal: React.FC<RecepcionWizardModalProps> = ({
       license_plate: selectedVeh.license_plate || prev.license_plate,
       brand: selectedVeh.brand || prev.brand,
       model: selectedVeh.model || prev.model,
+      year: selectedVeh.year || prev.year,
       color: selectedVeh.color || prev.color,
       mileage: selectedVeh.mileage || prev.mileage,
-      clients_fk_id: activeClient?.id || prev.clients_fk_id,
+      clients_fk_id: activeClient?.id || selectedVeh.clients_fk_id || prev.clients_fk_id,
       owner_name: activeClient?.client_name || selectedVeh.client_name || prev.owner_name,
       owner_tax_id: activeClient?.tax_id || prev.owner_tax_id,
       phone: activeClient?.cell_phone || activeClient?.phone || selectedVeh.phone || prev.phone,
+      email: activeClient?.email || prev.email,
       address: activeClient?.address || prev.address,
       delivered_by: activeClient?.client_name || prev.delivered_by || prev.owner_name
     }));
+    setIsNewVehicle(false);
+    if (activeClient) {
+      setIsNewClient(false);
+    }
+    setIsSearchDropdownOpen(false);
+  };
+
+  // Reset Vehicle Association
+  const handleUnlinkVehicle = () => {
+    setFormData(prev => ({ ...prev, vehicles_fk_id: undefined }));
+    setIsNewVehicle(true);
+  };
+
+  // Reset Client Association
+  const handleUnlinkClient = () => {
+    setFormData(prev => ({ ...prev, clients_fk_id: undefined }));
+    setIsNewClient(true);
   };
 
   // Step Validation
   const validateCurrentStep = (): boolean => {
     setError(null);
     if (currentStep === 1) {
-      if (!formData.license_plate && !formData.vehicles_fk_id) {
-        setError('Debe seleccionar un vehículo o ingresar la placa.');
+      if (!formData.license_plate?.trim()) {
+        setError('Debe indicar la placa del vehículo.');
         return false;
       }
-      if (!formData.owner_name) {
-        setError('Debe indicar el nombre del cliente o propietario.');
+      if (!formData.owner_name?.trim()) {
+        setError('Debe indicar el nombre completo o razón social del cliente.');
         return false;
       }
     } else if (currentStep === 2) {
@@ -232,20 +299,94 @@ export const RecepcionWizardModal: React.FC<RecepcionWizardModalProps> = ({
     setCurrentStep(prev => Math.max(1, prev - 1));
   };
 
-  // Save to Backend (Entity or Lambda)
+  // Save to Backend with Automatic Registration & Referential Integrity
   const handleSave = async (andPrint = false) => {
     if (!validateCurrentStep()) return;
     setLoading(true);
     setError(null);
 
-    const payload: any = {
-      ...formData,
-      checklist_external: JSON.stringify(formData.checklist_external || []),
-      checklist_internal: JSON.stringify(formData.checklist_internal || []),
-      damage_points: JSON.stringify(formData.damage_points || [])
-    };
-
     try {
+      let resolvedClientId: string | undefined = undefined;
+
+      // Extract existing clientId if already present
+      if (formData.clients_fk_id) {
+        resolvedClientId = Array.isArray(formData.clients_fk_id)
+          ? formData.clients_fk_id[0]
+          : formData.clients_fk_id;
+      }
+
+      // Check if client exists in DB by tax_id or name if not already linked
+      if (!resolvedClientId) {
+        const cleanTaxId = formData.owner_tax_id?.trim().toLowerCase();
+        const cleanName = formData.owner_name?.trim().toLowerCase();
+
+        const existingClient = clientes?.find((c: any) => {
+          if (cleanTaxId && c.tax_id && c.tax_id.trim().toLowerCase() === cleanTaxId) return true;
+          if (cleanName && c.client_name && c.client_name.trim().toLowerCase() === cleanName) return true;
+          return false;
+        });
+
+        if (existingClient) {
+          resolvedClientId = existingClient.id || existingClient.client_id;
+        } else {
+          // Auto-create new Client in DB
+          const newClientPayload = {
+            client_name: formData.owner_name?.trim() || '',
+            tax_id: formData.owner_tax_id?.trim() || '',
+            cell_phone: formData.phone?.trim() || '',
+            email: formData.email?.trim() || '',
+            address: formData.address?.trim() || '',
+            registration_date: new Date().toISOString().split('T')[0]
+          };
+          const createdClient: any = await createEntity('GestionTallerProd_clients', newClientPayload);
+          resolvedClientId = createdClient?.id || createdClient?.client_id || (createdClient?.data && (createdClient.data.id || createdClient.data.client_id));
+          if (refreshClientes) refreshClientes();
+        }
+      }
+
+      // Check Vehicle registration
+      let resolvedVehicleId: string | undefined = undefined;
+      if (formData.vehicles_fk_id) {
+        resolvedVehicleId = Array.isArray(formData.vehicles_fk_id)
+          ? formData.vehicles_fk_id[0]
+          : formData.vehicles_fk_id;
+      }
+
+      if (!resolvedVehicleId) {
+        const cleanPlate = formData.license_plate?.trim().toUpperCase();
+        const existingVehicle = vehiculos?.find((v: any) =>
+          v.license_plate && v.license_plate.trim().toUpperCase() === cleanPlate
+        );
+
+        if (existingVehicle) {
+          resolvedVehicleId = existingVehicle.id || existingVehicle.vehicle_id;
+        } else {
+          // Auto-create new Vehicle in DB and link to resolvedClientId
+          const newVehiclePayload = {
+            license_plate: cleanPlate,
+            brand: formData.brand?.trim() || '',
+            model: formData.model?.trim() || '',
+            color: formData.color?.trim() || '',
+            mileage: formData.mileage ? String(formData.mileage).trim() : '',
+            year: formData.year ? Number(formData.year) || new Date().getFullYear() : new Date().getFullYear(),
+            clients_fk_id: resolvedClientId ? [resolvedClientId] : []
+          };
+          const createdVehicle: any = await createEntity('GestionTallerProd_vehicles', newVehiclePayload);
+          resolvedVehicleId = createdVehicle?.id || createdVehicle?.vehicle_id || (createdVehicle?.data && (createdVehicle.data.id || createdVehicle.data.vehicle_id));
+          if (refreshVehiculos) refreshVehiculos();
+        }
+      }
+
+      // Construct Receipt payload with guaranteed relational links
+      const payload: any = {
+        ...formData,
+        clients_fk_id: resolvedClientId ? [resolvedClientId] : (formData.clients_fk_id ? [formData.clients_fk_id] : []),
+        vehicles_fk_id: resolvedVehicleId ? [resolvedVehicleId] : (formData.vehicles_fk_id ? [formData.vehicles_fk_id] : []),
+        checklist_external: JSON.stringify(formData.checklist_external || []),
+        checklist_internal: JSON.stringify(formData.checklist_internal || []),
+        damage_points: JSON.stringify(formData.damage_points || [])
+      };
+
       let result;
       if (recepcion?.id) {
         result = await updateEntity('GestionTallerProd_vehicle_receipts', recepcion.id, payload);
@@ -255,6 +396,8 @@ export const RecepcionWizardModal: React.FC<RecepcionWizardModalProps> = ({
 
       const finalSavedData: VehicleReceipt = {
         ...formData,
+        clients_fk_id: resolvedClientId,
+        vehicles_fk_id: resolvedVehicleId,
         id: result?.id || recepcion?.id || `REC-${Date.now()}`
       };
 
@@ -373,41 +516,200 @@ export const RecepcionWizardModal: React.FC<RecepcionWizardModalProps> = ({
             {/* ================= STEP 1: CLIENTE & VEHÍCULO ================= */}
             {currentStep === 1 && (
               <div className="space-y-6 animate-fadeIn">
-                {/* Vehicle Selection Box */}
-                <div className="bg-blue-50/50 border border-blue-150 rounded-2xl p-4 sm:p-5">
-                  <h4 className="text-sm font-bold text-secondary mb-3 flex items-center gap-2">
-                    <i className="fas fa-car text-primary"></i> Identificación del Vehículo
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="md:col-span-3">
-                      <label className="block text-xs font-bold text-gray-700 mb-1">
-                        Seleccionar de la Flota Registrada (Opcional)
-                      </label>
-                      <select
-                        value={formData.vehicles_fk_id || ''}
-                        onChange={(e) => handleVehicleSelect(e.target.value)}
-                        className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-sm font-medium focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
-                      >
-                        <option value="">-- Buscar o seleccionar vehículo registrado --</option>
-                        {vehiculos?.map((v: any) => {
-                          const pl = v.license_plate || v.plate || 'S/P';
-                          const desc = `${v.brand || ''} ${v.model || ''}`.trim();
-                          return (
-                            <option key={v.id || v.vehicle_id} value={v.id || v.vehicle_id}>
-                              [{pl}] {desc} {v.client_name ? `• ${v.client_name}` : ''}
-                            </option>
-                          );
-                        })}
-                      </select>
+                {/* Unified Search & Quick Autocomplete Bar */}
+                <div className="relative bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/80 rounded-2xl p-4 sm:p-5 shadow-sm">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-2">
+                    <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5 uppercase tracking-wide">
+                      <i className="fas fa-search text-blue-600"></i> Búsqueda Rápida / Autocompletado (Placa, Cédula/RIF o Nombre)
+                    </label>
+                    <span className="text-[11px] text-slate-500 italic">
+                      Escriba para autocompletar datos de la flota o clientes
+                    </span>
+                  </div>
+
+                  <div className="relative">
+                    <div className="relative flex items-center">
+                      <input
+                        id="input-wizard-search"
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => {
+                          setSearchQuery(e.target.value);
+                          setIsSearchDropdownOpen(true);
+                        }}
+                        onFocus={() => setIsSearchDropdownOpen(true)}
+                        placeholder="Ej: ABC123, V-18456123, o Toyota..."
+                        className="w-full pl-10 pr-10 py-2.5 bg-white border border-blue-200 rounded-xl text-sm font-medium text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none shadow-sm transition"
+                      />
+                      <i className="fas fa-search absolute left-3.5 text-slate-400 text-sm"></i>
+                      {searchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSearchQuery('');
+                            setIsSearchDropdownOpen(false);
+                          }}
+                          className="absolute right-3 text-slate-400 hover:text-slate-600 p-1"
+                        >
+                          <i className="fas fa-times text-xs"></i>
+                        </button>
+                      )}
                     </div>
 
+                    {/* Autocomplete Dropdown */}
+                    {isSearchDropdownOpen && searchQuery.trim().length > 0 && (
+                      <div className="absolute z-20 top-full left-0 right-0 mt-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl max-h-72 overflow-y-auto divide-y divide-slate-100 animate-fadeIn">
+                        {/* Matching Vehicles */}
+                        {(() => {
+                          const term = searchQuery.toLowerCase().trim();
+                          const matchedVehs = vehiculos?.filter((v: any) =>
+                            (v.license_plate && v.license_plate.toLowerCase().includes(term)) ||
+                            (v.brand && v.brand.toLowerCase().includes(term)) ||
+                            (v.model && v.model.toLowerCase().includes(term))
+                          ) || [];
+
+                          const matchedClients = clientes?.filter((c: any) =>
+                            (c.tax_id && c.tax_id.toLowerCase().includes(term)) ||
+                            (c.client_name && c.client_name.toLowerCase().includes(term)) ||
+                            (c.cell_phone && c.cell_phone.includes(term))
+                          ) || [];
+
+                          const hasResults = matchedVehs.length > 0 || matchedClients.length > 0;
+
+                          return (
+                            <>
+                              {matchedVehs.length > 0 && (
+                                <div className="p-2">
+                                  <div className="text-[10px] font-black text-blue-600 uppercase tracking-wider px-2 py-1 flex items-center gap-1">
+                                    <i className="fas fa-car"></i> Vehículos Registrados
+                                  </div>
+                                  {matchedVehs.slice(0, 5).map((v: any) => (
+                                    <button
+                                      key={v.id || v.vehicle_id}
+                                      type="button"
+                                      onClick={() => handleVehicleSelect(v.id || v.vehicle_id)}
+                                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-blue-50 transition flex items-center justify-between group"
+                                    >
+                                      <div>
+                                        <div className="font-bold text-sm text-slate-800 font-mono flex items-center gap-2">
+                                          <span className="px-2 py-0.5 bg-slate-100 border border-slate-200 rounded text-xs">
+                                            {v.license_plate || 'S/P'}
+                                          </span>
+                                          <span>{v.brand} {v.model}</span>
+                                        </div>
+                                        <div className="text-xs text-slate-500 mt-0.5">
+                                          {v.client_name ? `Propietario: ${v.client_name}` : 'Sin propietario asignado'}
+                                        </div>
+                                      </div>
+                                      <span className="text-xs text-blue-600 font-bold opacity-0 group-hover:opacity-100 transition">
+                                        Seleccionar <i className="fas fa-arrow-right text-[10px]"></i>
+                                      </span>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+
+                              {matchedClients.length > 0 && (
+                                <div className="p-2">
+                                  <div className="text-[10px] font-black text-indigo-600 uppercase tracking-wider px-2 py-1 flex items-center gap-1">
+                                    <i className="fas fa-user"></i> Clientes Registrados
+                                  </div>
+                                  {matchedClients.slice(0, 5).map((c: any) => (
+                                    <button
+                                      key={c.id || c.client_id}
+                                      type="button"
+                                      onClick={() => handleClientSelect(c.id || c.client_id)}
+                                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-indigo-50 transition flex items-center justify-between group"
+                                    >
+                                      <div>
+                                        <div className="font-bold text-sm text-slate-800">
+                                          {c.client_name}
+                                        </div>
+                                        <div className="text-xs text-slate-500 mt-0.5">
+                                          {c.tax_id ? `C.I./RIF: ${c.tax_id}` : ''} {c.cell_phone ? `• Tel: ${c.cell_phone}` : ''}
+                                        </div>
+                                      </div>
+                                      <span className="text-xs text-indigo-600 font-bold opacity-0 group-hover:opacity-100 transition">
+                                        Cargar Cliente <i className="fas fa-arrow-right text-[10px]"></i>
+                                      </span>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+
+                              {/* Quick Action to Register as New Vehicle */}
+                              <div className="p-2 bg-slate-50/80 rounded-b-2xl">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setFormData(prev => ({
+                                      ...prev,
+                                      license_plate: searchQuery.toUpperCase().trim(),
+                                      vehicles_fk_id: undefined
+                                    }));
+                                    setIsNewVehicle(true);
+                                    setIsSearchDropdownOpen(false);
+                                  }}
+                                  className="w-full text-left px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition text-xs font-bold flex items-center justify-between shadow-sm"
+                                >
+                                  <span className="flex items-center gap-2">
+                                    <i className="fas fa-plus-circle"></i>
+                                    Registrar como nuevo vehículo con la placa "{searchQuery.toUpperCase().trim()}"
+                                  </span>
+                                  <i className="fas fa-chevron-right text-[10px]"></i>
+                                </button>
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Vehicle Information Box */}
+                <div className="bg-blue-50/40 border border-blue-200/60 rounded-2xl p-4 sm:p-5">
+                  <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                    <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                      <i className="fas fa-car text-blue-600"></i> Identificación del Vehículo
+                    </h4>
+
+                    {/* Status Badge */}
+                    <div className="flex items-center gap-2">
+                      {formData.vehicles_fk_id ? (
+                        <div className="flex items-center gap-2">
+                          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1.5 shadow-sm">
+                            <i className="fas fa-check-circle text-emerald-600"></i> Vehículo Registrado en Flota
+                          </span>
+                          <button
+                            type="button"
+                            onClick={handleUnlinkVehicle}
+                            className="text-xs text-slate-500 hover:text-red-600 underline font-medium transition"
+                            title="Desvincular para registrar como nuevo vehículo"
+                          >
+                            Desvincular
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1.5 shadow-sm">
+                          <i className="fas fa-sparkles text-amber-600"></i> Nuevo Vehículo (Se dará de alta en BD)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-xs font-bold text-gray-700 mb-1">Placa / Matrícula *</label>
                       <input
+                        id="input-wizard-plate"
                         type="text"
                         required
                         value={formData.license_plate}
-                        onChange={(e) => setFormData({ ...formData, license_plate: e.target.value.toUpperCase() })}
+                        onChange={(e) => {
+                          setFormData({ ...formData, license_plate: e.target.value.toUpperCase() });
+                          if (formData.vehicles_fk_id) setIsNewVehicle(true);
+                        }}
                         placeholder="Ej: ABC123"
                         className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm font-mono font-bold uppercase focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
                       />
@@ -416,6 +718,7 @@ export const RecepcionWizardModal: React.FC<RecepcionWizardModalProps> = ({
                     <div>
                       <label className="block text-xs font-bold text-gray-700 mb-1">Marca</label>
                       <input
+                        id="input-wizard-brand"
                         type="text"
                         value={formData.brand}
                         onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
@@ -427,6 +730,7 @@ export const RecepcionWizardModal: React.FC<RecepcionWizardModalProps> = ({
                     <div>
                       <label className="block text-xs font-bold text-gray-700 mb-1">Modelo</label>
                       <input
+                        id="input-wizard-model"
                         type="text"
                         value={formData.model}
                         onChange={(e) => setFormData({ ...formData, model: e.target.value })}
@@ -436,8 +740,23 @@ export const RecepcionWizardModal: React.FC<RecepcionWizardModalProps> = ({
                     </div>
 
                     <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Año</label>
+                      <input
+                        id="input-wizard-year"
+                        type="number"
+                        min="1970"
+                        max={new Date().getFullYear() + 1}
+                        value={formData.year || ''}
+                        onChange={(e) => setFormData({ ...formData, year: e.target.value })}
+                        placeholder="Ej: 2022"
+                        className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm font-mono focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                      />
+                    </div>
+
+                    <div>
                       <label className="block text-xs font-bold text-gray-700 mb-1">Color</label>
                       <input
+                        id="input-wizard-color"
                         type="text"
                         value={formData.color || ''}
                         onChange={(e) => setFormData({ ...formData, color: e.target.value })}
@@ -449,6 +768,7 @@ export const RecepcionWizardModal: React.FC<RecepcionWizardModalProps> = ({
                     <div>
                       <label className="block text-xs font-bold text-gray-700 mb-1">Kilometraje Inicial (Km)</label>
                       <input
+                        id="input-wizard-mileage"
                         type="text"
                         value={formData.mileage || ''}
                         onChange={(e) => setFormData({ ...formData, mileage: e.target.value })}
@@ -457,9 +777,10 @@ export const RecepcionWizardModal: React.FC<RecepcionWizardModalProps> = ({
                       />
                     </div>
 
-                    <div>
+                    <div className="sm:col-span-2 md:col-span-3">
                       <label className="block text-xs font-bold text-gray-700 mb-1">Estado en Taller</label>
                       <select
+                        id="select-wizard-status"
                         value={formData.status || 'proceso'}
                         onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                         className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm font-semibold bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
@@ -475,17 +796,47 @@ export const RecepcionWizardModal: React.FC<RecepcionWizardModalProps> = ({
 
                 {/* Client / Owner Information Box */}
                 <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5">
-                  <h4 className="text-sm font-bold text-secondary mb-3 flex items-center gap-2">
-                    <i className="fas fa-user text-primary"></i> Datos del Propietario / Cliente
-                  </h4>
+                  <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                    <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                      <i className="fas fa-user text-blue-600"></i> Datos del Propietario / Cliente
+                    </h4>
+
+                    {/* Status Badge */}
+                    <div className="flex items-center gap-2">
+                      {formData.clients_fk_id ? (
+                        <div className="flex items-center gap-2">
+                          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1.5 shadow-sm">
+                            <i className="fas fa-check-circle text-emerald-600"></i> Cliente Registrado en Sistema
+                          </span>
+                          <button
+                            type="button"
+                            onClick={handleUnlinkClient}
+                            className="text-xs text-slate-500 hover:text-red-600 underline font-medium transition"
+                            title="Desvincular para registrar como nuevo cliente"
+                          >
+                            Desvincular
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-900 border border-indigo-300 flex items-center gap-1.5 shadow-sm">
+                          <i className="fas fa-user-plus text-indigo-600"></i> Nuevo Cliente (Se creará en BD)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-bold text-gray-700 mb-1">Nombre Completo / Razón Social *</label>
                       <input
+                        id="input-wizard-owner-name"
                         type="text"
                         required
                         value={formData.owner_name}
-                        onChange={(e) => setFormData({ ...formData, owner_name: e.target.value })}
+                        onChange={(e) => {
+                          setFormData({ ...formData, owner_name: e.target.value });
+                          if (formData.clients_fk_id) setIsNewClient(true);
+                        }}
                         placeholder="Nombre y Apellido o Empresa"
                         className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
                       />
@@ -494,6 +845,7 @@ export const RecepcionWizardModal: React.FC<RecepcionWizardModalProps> = ({
                     <div>
                       <label className="block text-xs font-bold text-gray-700 mb-1">C.I. / RIF / Pasaporte</label>
                       <input
+                        id="input-wizard-tax-id"
                         type="text"
                         value={formData.owner_tax_id || ''}
                         onChange={(e) => setFormData({ ...formData, owner_tax_id: e.target.value })}
@@ -505,6 +857,7 @@ export const RecepcionWizardModal: React.FC<RecepcionWizardModalProps> = ({
                     <div>
                       <label className="block text-xs font-bold text-gray-700 mb-1">Teléfono Móvil / Contacto</label>
                       <input
+                        id="input-wizard-phone"
                         type="tel"
                         value={formData.phone || ''}
                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
@@ -514,8 +867,21 @@ export const RecepcionWizardModal: React.FC<RecepcionWizardModalProps> = ({
                     </div>
 
                     <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Correo Electrónico (Opcional)</label>
+                      <input
+                        id="input-wizard-email"
+                        type="email"
+                        value={formData.email || ''}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        placeholder="cliente@ejemplo.com"
+                        className="w-full px-3.5 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
                       <label className="block text-xs font-bold text-gray-700 mb-1">Dirección de Habitación / Entrega</label>
                       <input
+                        id="input-wizard-address"
                         type="text"
                         value={formData.address || ''}
                         onChange={(e) => setFormData({ ...formData, address: e.target.value })}
@@ -749,6 +1115,7 @@ export const RecepcionWizardModal: React.FC<RecepcionWizardModalProps> = ({
             <div>
               {currentStep > 1 && (
                 <button
+                  id="btn-wizard-prev"
                   type="button"
                   onClick={handlePrevStep}
                   disabled={loading}
@@ -761,6 +1128,7 @@ export const RecepcionWizardModal: React.FC<RecepcionWizardModalProps> = ({
 
             <div className="flex items-center gap-3">
               <button
+                id="btn-wizard-cancel"
                 type="button"
                 onClick={onClose}
                 disabled={loading}
@@ -771,6 +1139,7 @@ export const RecepcionWizardModal: React.FC<RecepcionWizardModalProps> = ({
 
               {currentStep < 4 ? (
                 <button
+                  id="btn-wizard-next"
                   type="button"
                   onClick={handleNextStep}
                   className="px-6 py-2.5 bg-gradient-to-r from-primary to-blue-600 text-white rounded-xl hover:shadow-lg font-bold text-xs sm:text-sm flex items-center gap-2 shadow-soft transition"
@@ -780,6 +1149,7 @@ export const RecepcionWizardModal: React.FC<RecepcionWizardModalProps> = ({
               ) : (
                 <div className="flex items-center gap-2">
                   <button
+                    id="btn-wizard-save"
                     type="button"
                     onClick={() => handleSave(false)}
                     disabled={loading}
@@ -797,6 +1167,7 @@ export const RecepcionWizardModal: React.FC<RecepcionWizardModalProps> = ({
                   </button>
 
                   <button
+                    id="btn-wizard-save-print"
                     type="button"
                     onClick={() => handleSave(true)}
                     disabled={loading}

@@ -93,6 +93,8 @@ export interface VehicleReceipt extends BaseEntity {
   checklist_internal?: ChecklistItem[] | Record<string, any>;
   damage_points?: DamagePoint[];
   authorized_services?: string;
+  email?: string;
+  year?: string | number;
   client_signature?: string;
   mechanic_signature?: string;
 }

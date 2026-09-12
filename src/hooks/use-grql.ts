@@ -12,6 +12,7 @@ export interface UseGrqlResult<T> {
   loading: boolean;
   error: string | null;
   refetch: () => void;
+  mutate: () => void;
 }
 
 export interface UseGrqlListResult<T extends any[]> {
@@ -20,6 +21,7 @@ export interface UseGrqlListResult<T extends any[]> {
   loading: boolean;
   error: string | null;
   refetch: () => void;
+  mutate: () => void;
   create: (item: Record<string, unknown>) => Promise<T[number] | null>;
   update: (id: string, item: Record<string, unknown>) => Promise<T[number] | null>;
   remove: (id: string) => Promise<void>;
@@ -69,7 +71,7 @@ export function useGrqlList<T extends any[]>(
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  return { data, meta, loading, error, refetch: fetchData, create, update, remove };
+  return { data, meta, loading, error, refetch: fetchData, mutate: fetchData, create, update, remove };
 }
 
 export function useGrqlItem<T>(table: string, id: string): UseGrqlResult<T> {
@@ -93,5 +95,5 @@ export function useGrqlItem<T>(table: string, id: string): UseGrqlResult<T> {
 
   useEffect(() => { fetchItem(); }, [fetchItem]);
 
-  return { data, loading, error, refetch: fetchItem };
+  return { data, loading, error, refetch: fetchItem, mutate: fetchItem };
 }

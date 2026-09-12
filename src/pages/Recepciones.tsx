@@ -90,6 +90,7 @@ export default function Recepciones() {
               <i className="fas fa-search text-xs"></i>
             </span>
             <input
+              id="input-buscar-recepcion"
               type="text"
               placeholder="Buscar por cliente, placa o teléfono..."
               value={searchTerm}
@@ -98,6 +99,7 @@ export default function Recepciones() {
             />
           </div>
           <button
+            id="btn-nueva-recepcion"
             onClick={handleOpenNew}
             className="px-5 py-2.5 bg-gradient-to-r from-primary to-blue-600 text-white rounded-xl hover:shadow-lg transform hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 shadow-soft font-bold text-sm"
           >
@@ -178,6 +180,7 @@ export default function Recepciones() {
                         <td className="py-4 px-6 text-right">
                           <div className="flex justify-end gap-1.5">
                             <button
+                              id={`btn-print-${item.id}`}
                               onClick={() => setPrintRecepcion(item)}
                               className="p-2 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition"
                               title="Imprimir / Ver Ficha PDF"
@@ -185,6 +188,7 @@ export default function Recepciones() {
                               <i className="fas fa-print"></i>
                             </button>
                             <button
+                              id={`btn-edit-${item.id}`}
                               onClick={() => handleOpenEdit(item)}
                               className="p-2 text-gray-400 hover:text-primary hover:bg-blue-50 rounded-lg transition"
                               title="Editar Registro"

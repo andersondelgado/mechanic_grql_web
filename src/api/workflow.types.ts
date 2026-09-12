@@ -73,41 +73,82 @@ export interface WorkflowResponse<T = any> {
 export function extractData<T = any>(response: any): T | null {
   if (!response) return null;
 
+  // 1. Arreglo directo en la raíz
   if (Array.isArray(response)) return response as T;
 
-  // 1. Patrón original Lusiana (gRQL standard request/flows)
-  const standardData = response?.request?.flows?.[0]?.steps?.[0]?.actions?.[0]?.result?.data;
-  if (standardData !== undefined) {
-    if (Array.isArray(standardData)) return standardData as T;
-    if (standardData?.content && Array.isArray(standardData.content)) return standardData.content as T;
-    return standardData as T;
+  // 2. Patrón raíz con data o result
+  if (response.data !== undefined && response.data !== null) {
+    if (Array.isArray(response.data)) return response.data as T;
+    if (response.data?.content && Array.isArray(response.data.content)) return response.data.content as T;
+    if (response.data?.data && Array.isArray(response.data.data)) return response.data.data as T;
+    return response.data as T;
+  }
+  if (response.result !== undefined && response.result !== null) {
+    if (Array.isArray(response.result)) return response.result as T;
+    if (response.result?.data && Array.isArray(response.result.data)) return response.result.data as T;
+    return response.result as T;
   }
 
-  // 2. Patrón de respuesta directa de la Lambda (ej: { "GestionTallerProd_clients": { paginate: { content: [...] } } })
+  // 3. Patrón original Lusiana (gRQL standard request/flows)
+  const actionResult = response?.request?.flows?.[0]?.steps?.[0]?.actions?.[0]?.result;
+  if (actionResult !== undefined && actionResult !== null) {
+    if (actionResult.data !== undefined) {
+      const d = actionResult.data;
+      if (Array.isArray(d)) return d as T;
+      if (d?.content && Array.isArray(d.content)) return d.content as T;
+      if (d?.data && Array.isArray(d.data)) return d.data as T;
+      return d as T;
+    }
+    if (Array.isArray(actionResult)) return actionResult as T;
+    if (actionResult.content && Array.isArray(actionResult.content)) return actionResult.content as T;
+    return actionResult as T;
+  }
+
+  // 4. Patrón de respuesta directa de la Lambda por llave de entidad (ej: { "GestionTallerProd_clients": ... })
   const keys = Object.keys(response);
   for (const key of keys) {
     if (key !== 'request' && typeof response[key] === 'object' && response[key] !== null) {
       const tableData = response[key];
       
-      // Si es una respuesta paginada
-      if (tableData.paginate && Array.isArray(tableData.paginate.content)) {
-        return tableData.paginate.content as T;
+      // Si es una respuesta paginada con paginate
+      if (tableData.paginate) {
+        if (Array.isArray(tableData.paginate.content)) return tableData.paginate.content as T;
+        if (Array.isArray(tableData.paginate.data)) return tableData.paginate.data as T;
+        if (Array.isArray(tableData.paginate.rows)) return tableData.paginate.rows as T;
       }
       
-      // Si es una respuesta de lista directa
+      // Si tiene propiedad data directa
+      if (tableData.data !== undefined && tableData.data !== null) {
+        if (Array.isArray(tableData.data)) return tableData.data as T;
+        if (tableData.data?.content && Array.isArray(tableData.data.content)) return tableData.data.content as T;
+        return tableData.data as T;
+      }
+
+      // Si tiene propiedad content
       if (Array.isArray(tableData.content)) {
         return tableData.content as T;
       }
 
+      // Si tiene propiedad rows
+      if (Array.isArray(tableData.rows)) {
+        return tableData.rows as T;
+      }
+
+      // Si el valor de la entidad es un arreglo directo
       if (Array.isArray(tableData)) {
         return tableData as T;
       }
       
-      // Si es un objeto único válido (ej: respuesta de una mutación create/update con id)
-      if (tableData.id || tableData.success) {
+      // Si es un objeto único válido (ej: respuesta de una mutación create/update con id o success)
+      if (tableData.id || tableData.success || tableData.status === 'success') {
         return tableData as T;
       }
     }
+  }
+
+  // 5. Objeto directo de mutación
+  if (response.id || response.success) {
+    return response as T;
   }
 
   // Fallback
@@ -117,14 +158,24 @@ export function extractData<T = any>(response: any): T | null {
 /** Helper: extrae los metadatos de paginación del payload directo de la lambda */
 export function extractPagination(response: any): any | null {
   if (!response) return null;
+
+  if (response.meta) return response.meta;
+  if (response.pagination) return response.pagination;
+
+  const actionResult = response?.request?.flows?.[0]?.steps?.[0]?.actions?.[0]?.result;
+  if (actionResult?.meta) return actionResult.meta;
+  if (actionResult?.pagination) return actionResult.pagination;
+
   const keys = Object.keys(response);
   for (const key of keys) {
     if (key !== 'request' && typeof response[key] === 'object' && response[key] !== null) {
       const tableData = response[key];
       if (tableData.paginate) {
-        const { content, ...meta } = tableData.paginate;
+        const { content, data, rows, ...meta } = tableData.paginate;
         return meta;
       }
+      if (tableData.meta) return tableData.meta;
+      if (tableData.pagination) return tableData.pagination;
     }
   }
   return null;
