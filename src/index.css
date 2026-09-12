@@ -34,27 +34,124 @@ body {
   display: none !important;
 }
 
-/* Print Styles for Reception Sheets & PDFs */
+/* Print Styles for Reception Sheets & Official Documents */
 @media print {
+  @page {
+    size: letter portrait;
+    margin: 8mm 8mm 8mm 8mm;
+  }
+
+  html,
   body {
     background: #ffffff !important;
     color: #000000 !important;
     padding: 0 !important;
     margin: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    overflow-x: visible !important;
+    overflow-y: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
-  .no-print, nav, header, aside, .sidebar, button {
+
+  /* When printing from the modal, hide all background application chrome */
+  body.has-printable-sheet > #root > div > aside,
+  body.has-printable-sheet > #root > div > main > header,
+  body.has-printable-sheet > #root > div > main > div > *:not(.printable-modal-overlay),
+  .no-print,
+  nav,
+  header,
+  aside,
+  .sidebar,
+  button,
+  .backdrop-blur-sm {
     display: none !important;
   }
-  .printable-document {
+
+  /* Flatten all container elements from #root down to .printable-document */
+  #root,
+  #root > div,
+  main,
+  main > div,
+  .overflow-hidden,
+  .overflow-y-auto,
+  .h-screen {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    display: block !important;
+    position: static !important;
+    margin: 0 !important;
+    padding: 0 !important;
     box-shadow: none !important;
     border: none !important;
+  }
+
+  /* Flatten the modal overlay completely into a transparent printable block */
+  .printable-modal-overlay {
+    position: static !important;
+    display: block !important;
+    inset: auto !important;
+    z-index: auto !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+  }
+
+  .printable-document {
+    position: static !important;
+    display: block !important;
     width: 100% !important;
     max-width: 100% !important;
+    box-shadow: none !important;
+    border: none !important;
     margin: 0 !important;
-    padding: 10px !important;
+    padding: 0 !important;
+    background: transparent !important;
+    overflow: visible !important;
   }
-  .page-break-after {
+
+  /* PAGE 1: First page of receipt */
+  .page-sheet-1 {
+    display: block !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
     page-break-after: always !important;
     break-after: page !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* PAGE 2: Second page of receipt */
+  .page-sheet-2 {
+    display: block !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    page-break-before: always !important;
+    break-before: page !important;
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+    border-top: none !important;
+  }
+
+  /* Remove scroll limits inside printable checklist */
+  .page-sheet-2 .overflow-y-auto {
+    max-height: none !important;
+    overflow: visible !important;
+    padding-right: 0 !important;
   }
 }

@@ -71,8 +71,9 @@ export default function Recepciones() {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto p-4 lg:p-8">
-      {/* Action and Title Banner */}
+    <>
+      <div className="no-print space-y-6 max-w-7xl mx-auto p-4 lg:p-8">
+        {/* Action and Title Banner */}
       <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="flex items-center gap-3.5">
           <div className="p-3.5 bg-blue-50/70 text-primary rounded-2xl">
@@ -237,20 +238,21 @@ export default function Recepciones() {
           )}
         </div>
       </div>
-      
-      <RecepcionWizardModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        onSuccess={() => refetch()} 
-        recepcion={selectedRecepcion} 
-      />
-
-      {printRecepcion && (
-        <PrintableReceiptSheet
-          receipt={printRecepcion}
-          onClose={() => setPrintRecepcion(null)}
-        />
-      )}
     </div>
-  );
+      
+    <RecepcionWizardModal 
+      isOpen={isModalOpen} 
+      onClose={() => setIsModalOpen(false)} 
+      onSuccess={() => refetch()} 
+      recepcion={selectedRecepcion} 
+    />
+
+    {printRecepcion && (
+      <PrintableReceiptSheet
+        receipt={printRecepcion}
+        onClose={() => setPrintRecepcion(null)}
+      />
+    )}
+  </>
+);
 }

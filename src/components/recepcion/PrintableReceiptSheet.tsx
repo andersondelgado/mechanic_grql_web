@@ -10,6 +10,13 @@ interface PrintableReceiptSheetProps {
 export const PrintableReceiptSheet: React.FC<PrintableReceiptSheetProps> = ({ receipt, onClose }) => {
   const [downloading, setDownloading] = React.useState(false);
 
+  React.useEffect(() => {
+    document.body.classList.add('has-printable-sheet');
+    return () => {
+      document.body.classList.remove('has-printable-sheet');
+    };
+  }, []);
+
   const handlePrint = () => {
     window.print();
   };
@@ -40,7 +47,7 @@ export const PrintableReceiptSheet: React.FC<PrintableReceiptSheetProps> = ({ re
   const receiptNum = receipt.receipt_number || `REC-${String(receipt.id || '0000').substring(0, 6).toUpperCase()}`;
 
   return (
-    <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-[100] flex flex-col items-center justify-start p-2 sm:p-6 overflow-y-auto">
+    <div className="printable-modal-overlay fixed inset-0 bg-black/75 backdrop-blur-sm z-[100] flex flex-col items-center justify-start p-2 sm:p-6 overflow-y-auto print:static print:p-0 print:m-0 print:bg-white print:overflow-visible print:h-auto print:block print:inset-auto">
       {/* Floating Toolbar (Hidden when printing) */}
       <div className="no-print w-full max-w-4xl bg-slate-900 text-white p-4 rounded-2xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between shadow-xl mb-4 sticky top-2 z-50 gap-3">
         <div className="flex items-center gap-3">
@@ -88,10 +95,10 @@ export const PrintableReceiptSheet: React.FC<PrintableReceiptSheetProps> = ({ re
       </div>
 
       {/* Printable Sheet Container */}
-      <div className="printable-document bg-white w-full max-w-[820px] shadow-2xl rounded-xl border border-gray-300 text-slate-900 font-sans p-6 sm:p-8 space-y-6 print:m-0 print:p-4 print:shadow-none print:border-none print:w-full">
+      <div className="printable-document bg-white w-full max-w-[820px] shadow-2xl rounded-xl border border-gray-300 text-slate-900 font-sans p-6 sm:p-8 space-y-6 print:m-0 print:p-0 print:shadow-none print:border-none print:w-full print:max-w-none print:space-y-0">
         
         {/* ================= PAGE 1 ================= */}
-        <div className="page-container page-break-after space-y-4">
+        <div className="page-sheet page-sheet-1 space-y-4 print:space-y-2.5">
           
           {/* Header Banner */}
           <div className="border-b-2 border-slate-900 pb-3 flex items-start justify-between">
@@ -294,7 +301,7 @@ export const PrintableReceiptSheet: React.FC<PrintableReceiptSheetProps> = ({ re
         </div>
 
         {/* ================= PAGE 2 ================= */}
-        <div className="page-container space-y-4 pt-4 border-t-2 border-slate-300 print:border-none">
+        <div className="page-sheet page-sheet-2 space-y-4 pt-4 border-t-2 border-slate-300 print:space-y-2.5 print:pt-0 print:border-none">
           
           <div className="text-center py-1 bg-slate-100 border border-slate-300 rounded font-bold text-xs uppercase tracking-widest text-slate-800">
             Inventario de Componentes y Estado Físico (77 Puntos)
@@ -307,7 +314,7 @@ export const PrintableReceiptSheet: React.FC<PrintableReceiptSheetProps> = ({ re
               <h5 className="font-bold text-slate-800 border-b border-slate-200 pb-1 mb-1.5 uppercase tracking-wide">
                 Revisión Externa (Carrocería / Cristales / Luces / Ruedas)
               </h5>
-              <div className="space-y-1 max-h-[360px] overflow-y-auto pr-1">
+              <div className="space-y-1 max-h-[360px] overflow-y-auto pr-1 print:max-h-none print:overflow-visible print:pr-0">
                 {externalList.length > 0 ? (
                   externalList.map((item, idx) => (
                     <div key={item.id || idx} className="flex items-center justify-between border-b border-slate-100 py-0.5">
@@ -338,7 +345,7 @@ export const PrintableReceiptSheet: React.FC<PrintableReceiptSheetProps> = ({ re
               <h5 className="font-bold text-slate-800 border-b border-slate-200 pb-1 mb-1.5 uppercase tracking-wide">
                 Revisión Interna (Habitáculo / Mandos / Auxilio)
               </h5>
-              <div className="space-y-1 max-h-[360px] overflow-y-auto pr-1">
+              <div className="space-y-1 max-h-[360px] overflow-y-auto pr-1 print:max-h-none print:overflow-visible print:pr-0">
                 {internalList.length > 0 ? (
                   internalList.map((item, idx) => (
                     <div key={item.id || idx} className="flex items-center justify-between border-b border-slate-100 py-0.5">
