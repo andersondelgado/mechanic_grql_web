@@ -10,6 +10,7 @@
  */
 
 import { BASE_URL, API_KEY } from '../api/config';
+import { isJwtExpired, handleSessionExpired } from '../api/client';
 import type { WorkflowRequest } from '../api/workflow.types';
 
 export interface RequestOptions extends RequestInit {
@@ -112,13 +113,10 @@ export class NativeHttpClient {
         data = await response.text();
       }
 
-      // Interceptor de error 401: Sesión expirada
-      if (response.status === 401 && typeof window !== 'undefined') {
-        localStorage.removeItem('token');
-        localStorage.removeItem('lambdaToken');
-        if (window.location.hash !== '#/login') {
-          window.location.hash = '#/login';
-        }
+      // Interceptor de error 401 / JWT Expired: Sesión expirada
+      if (response.status === 401 || isJwtExpired(data, response.status)) {
+        handleSessionExpired();
+        throw new HttpError(401, 'Unauthorized - JWT Expired', data);
       }
 
       // Validación de response.ok

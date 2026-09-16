@@ -33,7 +33,11 @@ export const SecurityService = {
   logout(): void {
     localStorage.removeItem('token');
     localStorage.removeItem('lambdaToken');
+    localStorage.removeItem('user');
     localStorage.removeItem('owner');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('lambdaToken');
+    sessionStorage.removeItem('user');
   },
 
   getToken(): string | null {

@@ -23,10 +23,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const storedToken = localStorage.getItem("lambdaToken") || localStorage.getItem("token");
     const storedUser = localStorage.getItem("user");
     if (storedToken && storedUser) {
-      setToken(storedToken);
-      setUser(JSON.parse(storedUser));
+      try {
+        setToken(storedToken);
+        setUser(JSON.parse(storedUser));
+      } catch (e) {
+        localStorage.removeItem("user");
+      }
     }
     setLoading(false);
+
+    const handleAuthExpired = () => {
+      setUser(null);
+      setToken(null);
+      if (window.location.hash !== "#/login") {
+        window.location.hash = "#/login";
+      }
+    };
+
+    window.addEventListener("auth:expired", handleAuthExpired);
+    return () => {
+      window.removeEventListener("auth:expired", handleAuthExpired);
+    };
   }, []);
 
   const login = async (username: string, password: string) => {
@@ -110,7 +127,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     SecurityService.logout();
     setUser(null);
     setToken(null);
-    window.location.hash = "/login";
+    if (window.location.hash !== "#/login") {
+      window.location.hash = "#/login";
+    }
   };
 
   return (
@@ -134,7 +153,9 @@ export function RequireAuth({ children }: { children: JSX.Element }) {
   }
 
   if (!user) {
-    window.location.hash = "/login";
+    if (window.location.hash !== "#/login") {
+      window.location.hash = "#/login";
+    }
     return null;
   }
 

@@ -11,6 +11,9 @@
     "lint": "eslint src --ext ts,tsx",
     "typecheck": "tsc --noEmit"
   },
+  "engines": {
+    "node": ">=18.0.0 <23.0.0"
+  },
   "dependencies": {
     "clsx": "^2.1.0",
     "date-fns": "^3.3.1",

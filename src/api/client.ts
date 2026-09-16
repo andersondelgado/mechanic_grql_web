@@ -45,6 +45,66 @@ export class HttpError extends Error {
   }
 }
 
+// ─── Helpers de Expiración de Sesión y JWT ──────────────────────────────────
+export function isJwtExpired(data: any, status?: number): boolean {
+  if (status === 401) return true;
+  if (!data) return false;
+
+  if (typeof data === 'string') {
+    const lower = data.toLowerCase();
+    return lower.includes('jwt expired') || lower.includes('token expired');
+  }
+
+  if (typeof data === 'object') {
+    if (data.error) {
+      if (typeof data.error === 'string' && (data.error.toLowerCase().includes('jwt expired') || data.error.toLowerCase().includes('token expired'))) {
+        return true;
+      }
+      if (typeof data.error?.message === 'string' && (data.error.message.toLowerCase().includes('jwt expired') || data.error.message.toLowerCase().includes('token expired'))) {
+        return true;
+      }
+    }
+    if (typeof data.message === 'string' && (data.message.toLowerCase().includes('jwt expired') || data.message.toLowerCase().includes('token expired'))) {
+      return true;
+    }
+    if (Array.isArray(data.errors)) {
+      for (const err of data.errors) {
+        const msg = typeof err === 'string' ? err : err?.message;
+        if (typeof msg === 'string' && (msg.toLowerCase().includes('jwt expired') || msg.toLowerCase().includes('token expired'))) {
+          return true;
+        }
+      }
+    }
+    const flowError = data?.request?.flows?.[0]?.steps?.[0]?.actions?.[0]?.result?.error;
+    if (flowError) {
+      const msg = typeof flowError === 'string' ? flowError : flowError.message;
+      if (typeof msg === 'string' && (msg.toLowerCase().includes('jwt expired') || msg.toLowerCase().includes('token expired'))) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+export function handleSessionExpired(): void {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('token');
+    localStorage.removeItem('lambdaToken');
+    localStorage.removeItem('user');
+    localStorage.removeItem('owner');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('lambdaToken');
+    sessionStorage.removeItem('user');
+
+    window.dispatchEvent(new CustomEvent('auth:expired'));
+
+    if (window.location.hash !== '#/login') {
+      window.location.hash = '#/login';
+    }
+  }
+}
+
 // ─── Cliente HTTP Nativo (Fetch Wrapper con Interceptores) ───────────────────
 export class HttpClient {
   private baseURL: string;
@@ -111,18 +171,9 @@ export class HttpClient {
   }
 
   /**
-   * Interceptor de respuesta: Deserialización de JSON, manejo global de 401 y errores HTTP.
+   * Interceptor de respuesta: Deserialización de JSON, manejo global de 401, jwt expired y errores HTTP.
    */
   private async applyResponseInterceptors<T>(response: Response): Promise<ApiResponse<T>> {
-    // Intercepción de autenticación: Si el servidor retorna 401, limpiar credenciales y redirigir
-    if (response.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('lambdaToken');
-      if (typeof window !== 'undefined' && window.location.hash !== '#/login') {
-        window.location.hash = '/login';
-      }
-    }
-
     // Deserialización del cuerpo
     let data: any = null;
     const contentType = response.headers.get('content-type') || '';
@@ -138,6 +189,12 @@ export class HttpClient {
       } catch {
         data = null;
       }
+    }
+
+    // Intercepción de autenticación: Si el servidor retorna 401 o la respuesta contiene jwt expired
+    if (response.status === 401 || isJwtExpired(data, response.status)) {
+      handleSessionExpired();
+      throw new HttpError(401, 'Unauthorized - JWT Expired', data);
     }
 
     // Validación de status code (2xx)
