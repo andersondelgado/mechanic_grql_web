@@ -1,11 +1,14 @@
 import React, { useState } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/use-auth";
+import GeminiCopilotDrawer from "../components/ai/GeminiCopilotDrawer";
 
 interface MenuItem {
   name: string;
   path: string;
   icon: string;
+  /** Si se define, el ítem abre el panel de IA en lugar de navegar a una ruta. */
+  action?: "copilot";
 }
 
 interface MenuGroup {
@@ -54,6 +57,12 @@ const menuGroups: MenuGroup[] = [
     label: "Peritajes",
     items: [
       { name: "Listado de Peritajes", path: "/peritajes", icon: "fas fa-search-dollar" },
+    ]
+  },
+  {
+    label: "IA Generativa",
+    items: [
+      { name: "Copiloto Gemini", path: "#copilot", icon: "fas fa-brain", action: "copilot" },
     ]
   },
   {
@@ -113,6 +122,7 @@ export default function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
+  const [copilotOpen, setCopilotOpen] = useState(false);
 
   const currentPath = location.pathname;
   const isPeritajeForm = currentPath.startsWith("/peritajes/");
@@ -143,6 +153,21 @@ export default function Dashboard() {
                 <div key={group.label} className="mb-5">
                   <p className="text-xs font-semibold text-gray-500 uppercase px-3 py-1">{group.label}</p>
                   {group.items.map((item) => {
+                    if (item.action === "copilot") {
+                      return (
+                        <button
+                          key={item.name}
+                          onClick={() => {
+                            setCopilotOpen(true);
+                            setSidebarOpen(false);
+                          }}
+                          className="w-full flex items-center gap-3 mx-1 my-0.5 px-3 py-2.5 rounded-xl transition-all duration-200 text-gray-300 hover:bg-gray-800 text-left"
+                        >
+                          <i className={`${item.icon} w-5 text-center text-purple-400`}></i>
+                          <span>{item.name}</span>
+                        </button>
+                      );
+                    }
                     const isActive = location.pathname === item.path;
                     return (
                       <Link
@@ -179,6 +204,18 @@ export default function Dashboard() {
             <div key={group.label} className="mb-6">
               <p className="text-xs font-semibold text-gray-500 uppercase px-4 py-2">{group.label}</p>
               {group.items.map((item) => {
+                if (item.action === "copilot") {
+                  return (
+                    <button
+                      key={item.name}
+                      onClick={() => setCopilotOpen(true)}
+                      className="w-full flex items-center gap-3 mx-2 my-1 px-3 py-2.5 rounded-xl transition-all duration-200 text-gray-300 hover:bg-gray-800 text-left"
+                    >
+                      <i className={`${item.icon} w-5 text-center text-sm text-purple-400`}></i>
+                      <span className="text-sm">{item.name}</span>
+                    </button>
+                  );
+                }
                 const isActive = location.pathname === item.path || 
                   (item.path !== "/" && location.pathname.startsWith(item.path));
                 return (
@@ -226,6 +263,15 @@ export default function Dashboard() {
           </div>
           
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => setCopilotOpen(true)}
+              className="hidden sm:inline-flex items-center gap-2 px-3 py-2.5 rounded-xl bg-purple-50 text-purple-600 hover:bg-purple-100 transition text-sm font-semibold"
+              title="Abrir Copiloto Gemini"
+            >
+              <i className="fas fa-brain"></i>
+              <span className="hidden md:inline">Copiloto Gemini</span>
+            </button>
+
             <button 
               onClick={toggleDarkMode}
               className="p-2.5 hover:bg-gray-100 rounded-xl transition text-gray-600" 
@@ -281,6 +327,9 @@ export default function Dashboard() {
           <Outlet />
         </div>
       </main>
+
+      {/* Copiloto Gemini (IA Generativa) */}
+      <GeminiCopilotDrawer open={copilotOpen} onClose={() => setCopilotOpen(false)} />
     </div>
   );
 }
