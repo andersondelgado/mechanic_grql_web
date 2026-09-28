@@ -1,5 +1,7 @@
 import React, { useState, useRef } from "react";
 import { uploadVideo, analyzeVideo } from "../../api/client";
+import { GeminiAiService } from "../../services/gemini-ai.service";
+import { Base64File, fileToBase64, formatBytes } from "../../utils/base64";
 import { useGrqlList } from "../../hooks/use-grql";
 
 interface PeritajeModalProps {
@@ -17,9 +19,12 @@ export default function PeritajeModals({ type, isOpen, onClose, onSuccess, data 
   const [recordedVideoUrl, setRecordedVideoUrl] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] = useState<any>(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const [mediaFile, setMediaFile] = useState<Base64File | null>(null);
+  const [converting, setConverting] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: vehiculos } = useGrqlList<any[]>("GestionTallerProd_vehicles");
   const { data: clientes } = useGrqlList<any[]>("GestionTallerProd_clients");
@@ -82,6 +87,57 @@ export default function PeritajeModals({ type, isOpen, onClose, onSuccess, data 
       if (onSuccess) onSuccess();
     } catch (err: any) {
       setError("Error en análisis IA: " + err.message);
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setError(null);
+    setConverting(true);
+    try {
+      setMediaFile(await fileToBase64(file));
+      setAnalysisResult(null);
+    } catch (err: any) {
+      setMediaFile(null);
+      setError(err.message || "No se pudo convertir el archivo a base64");
+    } finally {
+      setConverting(false);
+    }
+  };
+
+  /** Archivo (ya en base64) -> Gemini. El video primero se sube a la nube para analizarlo por URL. */
+  const handleAnalyzeFile = async () => {
+    if (!mediaFile) return;
+    setAnalyzing(true);
+    setError(null);
+    try {
+      const cardId = data?.id || data?.card_id || "";
+      let videoUrlForAi = "";
+      if (mediaFile.kind === "video" && cardId) {
+        try {
+          const upload = await uploadVideo(mediaFile.dataUrl, cardId);
+          videoUrlForAi = upload.video_url;
+        } catch {
+          if (mediaFile.base64.length > 14 * 1024 * 1024) {
+            throw new Error("El video es demasiado grande para enviarlo inline a la IA.");
+          }
+        }
+      }
+      const result = await GeminiAiService.analyzePeritajeMedia({
+        file_base64: videoUrlForAi ? undefined : mediaFile.base64,
+        mime_type: mediaFile.mimeType,
+        video_url: videoUrlForAi || undefined,
+        inspection_cards_fk_id: cardId || undefined,
+        prompt_context: "Peritaje de daños vehicular a partir de un archivo multimedia subido por el inspector.",
+      });
+      setAnalysisResult(result);
+      if (onSuccess) onSuccess();
+    } catch (err: any) {
+      setError("Error en análisis IA: " + (err.message || err));
     } finally {
       setAnalyzing(false);
     }
@@ -175,7 +231,7 @@ export default function PeritajeModals({ type, isOpen, onClose, onSuccess, data 
           <div className="p-6">
             <div className="flex items-center justify-between pb-4 border-b border-gray-100 mb-6">
               <h3 className="text-xl font-bold text-secondary flex items-center gap-2">
-                <i className="fas fa-brain text-purple-600"></i> Análisis Multimodal de Video con IA Gemini
+                <i className="fas fa-brain text-purple-600"></i> Análisis Multimodal con IA Gemini
               </h3>
               <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-xl"><i className="fas fa-times"></i></button>
             </div>
@@ -191,9 +247,10 @@ export default function PeritajeModals({ type, isOpen, onClose, onSuccess, data 
                 <div className="w-20 h-20 bg-purple-50 text-purple-600 rounded-3xl flex items-center justify-center mx-auto mb-4 text-3xl">
                   <i className="fas fa-robot"></i>
                 </div>
-                <h4 className="text-lg font-bold text-secondary">Procesar Video con Gemini 2.5 Pro</h4>
+                <h4 className="text-lg font-bold text-secondary">Procesar peritaje con Gemini</h4>
                 <p className="text-sm text-gray-500 max-w-md mx-auto mt-1 mb-6">
-                  El modelo multimodal examinará cuadro por cuadro los daños en carrocería, pintura y piezas mecánicas.
+                  El modelo multimodal examinará el material (video o archivo subido) para detectar daños en
+                  carrocería, pintura y piezas mecánicas.
                 </p>
                 <button
                   onClick={handleRunAiAnalysis}
@@ -201,13 +258,68 @@ export default function PeritajeModals({ type, isOpen, onClose, onSuccess, data 
                 >
                   <i className="fas fa-wand-magic-sparkles"></i> Ejecutar Análisis IA
                 </button>
+
+                <div className="mt-6 border-2 border-dashed border-gray-200 rounded-2xl p-5 bg-gray-50/60 text-left">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,video/*,audio/*"
+                    className="hidden"
+                    onChange={handleFileSelected}
+                  />
+                  {!mediaFile ? (
+                    <div className="text-center">
+                      <i className="fas fa-file-arrow-up text-xl text-primary mb-1.5"></i>
+                      <p className="text-sm font-bold text-secondary">O sube un archivo</p>
+                      <p className="text-xs text-gray-500 mt-0.5 mb-3">
+                        Imagen, video o audio — se convierte a{" "}
+                        <span className="font-semibold text-emerald-600">base64</span> antes de enviarlo a la IA
+                      </p>
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={converting}
+                        className="px-4 py-2 border-2 border-primary text-primary bg-white rounded-xl hover:bg-primary/5 transition font-bold text-sm"
+                      >
+                        <i className="fas fa-folder-open mr-1.5"></i>
+                        {converting ? "Convirtiendo a base64..." : "Seleccionar archivo"}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col sm:flex-row items-center gap-3">
+                      <div className="flex-1 min-w-0 text-center sm:text-left">
+                        <p className="text-sm font-bold text-secondary truncate">{mediaFile.name}</p>
+                        <p className="text-xs text-gray-500">
+                          {formatBytes(mediaFile.size)} · {mediaFile.mimeType}
+                        </p>
+                        <span className="inline-flex items-center gap-1.5 mt-1.5 px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[11px] font-bold">
+                          <i className="fas fa-check"></i> Convertido a base64
+                        </span>
+                      </div>
+                      <div className="flex gap-2 shrink-0">
+                        <button
+                          onClick={handleAnalyzeFile}
+                          className="px-4 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition font-bold text-sm shadow-soft flex items-center gap-2"
+                        >
+                          <i className="fas fa-brain"></i> Procesar con IA
+                        </button>
+                        <button
+                          onClick={() => setMediaFile(null)}
+                          title="Descartar archivo"
+                          className="px-3 py-2.5 border-2 border-gray-200 text-gray-600 bg-white rounded-xl hover:bg-gray-50 transition font-bold text-sm"
+                        >
+                          <i className="fas fa-xmark"></i>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
             {analyzing && (
               <div className="text-center py-12">
                 <i className="fas fa-brain text-5xl text-purple-600 animate-pulse mb-4"></i>
-                <h4 className="text-lg font-bold text-secondary">Analizando video con IA...</h4>
+                <h4 className="text-lg font-bold text-secondary">Analizando material con IA...</h4>
                 <p className="text-sm text-gray-500 mt-1">Extrayendo diagnósticos, severidad y repuestos necesarios...</p>
               </div>
             )}

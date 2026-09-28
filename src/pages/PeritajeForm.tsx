@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { usePeritaje, usePeritajeVideos } from "../hooks/use-peritajes";
 import { createEntity, uploadVideo, analyzeVideo, callLambda, getEntity } from "../api/client";
+import { GeminiAiService } from "../services/gemini-ai.service";
+import { Base64File, fileToBase64, formatBytes } from "../utils/base64";
 import Autocomplete from "../components/ui/Autocomplete";
 import { InspectionCard, InspectionAnalysis } from "../types/entities";
 import { useGrqlList } from "../hooks/use-grql";
@@ -27,16 +29,21 @@ export default function PeritajeForm() {
   const [analysisResult, setAnalysisResult] = useState<InspectionAnalysis | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
 
+  // Archivo seleccionado manualmente, ya convertido a base64 para la IA generativa
+  const [mediaFile, setMediaFile] = useState<Base64File | null>(null);
+  const [converting, setConverting] = useState(false);
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: peritaje, refetch: refetchPeritaje } = isEdit
     ? usePeritaje(id!)
     : { data: null, refetch: () => {} };
 
   const { data: videos } = usePeritajeVideos();
-  const { data: analysisList } = useGrqlList<any[]>("peritaje_analysis");
+  const { data: analysisList } = useGrqlList<any[]>("GestionTallerProd_inspection_analysis");
 
   useEffect(() => {
     if (peritaje) {
@@ -143,6 +150,83 @@ export default function PeritajeForm() {
     }
   };
 
+  const handleFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setError(null);
+    setConverting(true);
+    try {
+      const converted = await fileToBase64(file);
+      setMediaFile(converted);
+      setAnalysisResult(null);
+    } catch (err: any) {
+      setMediaFile(null);
+      setError(err.message || "No se pudo convertir el archivo a base64");
+    } finally {
+      setConverting(false);
+    }
+  };
+
+  const discardMediaFile = () => {
+    setMediaFile(null);
+    setAnalysisResult(null);
+  };
+
+  /**
+   * Envía el archivo convertido a base64 a la IA generativa (Gemini).
+   * - Imagen / audio: base64 inline directo al modelo.
+   * - Video: primero se sube a la nube (en base64) y la IA lo procesa por URL;
+   *   si la subida falla, se intenta con el base64 inline.
+   */
+  const processFileWithAi = async () => {
+    if (!mediaFile) return;
+    setAnalyzing(true);
+    setError(null);
+    try {
+      const isInlineSafe = mediaFile.base64.length <= 14 * 1024 * 1024;
+      let videoUrlForAi = "";
+
+      if (mediaFile.kind === "video" && formData.id) {
+        try {
+          const uploadResult = await uploadVideo(mediaFile.dataUrl, formData.id);
+          videoUrlForAi = uploadResult.video_url;
+          setUploadedVideoUrl(uploadResult.video_url);
+          setVideoUrl(uploadResult.video_url);
+        } catch {
+          if (!isInlineSafe) {
+            throw new Error("El video es demasiado grande para enviarlo inline. Verifica la subida a la nube.");
+          }
+        }
+      } else if (!isInlineSafe) {
+        throw new Error("El archivo supera el tamaño máximo que Gemini acepta en línea (~10 MB).");
+      }
+
+      const result = await GeminiAiService.analyzePeritajeMedia({
+        file_base64: videoUrlForAi ? undefined : mediaFile.base64,
+        mime_type: mediaFile.mimeType,
+        video_url: videoUrlForAi || undefined,
+        inspection_cards_fk_id: formData.id,
+        prompt_context:
+          "Peritaje de daños vehicular a partir de un archivo multimedia subido por el inspector.",
+        vehicle_context: {
+          vehicles_fk_id: formData.vehicles_fk_id || "",
+          inspection_type: formData.inspection_type || "",
+          inspection_date: formData.inspection_date || "",
+        },
+        observations: formData.observations || undefined,
+      });
+
+      setAnalysisResult(result as unknown as InspectionAnalysis);
+      setActiveTab("analysis");
+      await refetchPeritaje();
+    } catch (err: any) {
+      setError(err.message || "Error al procesar el archivo con la IA");
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
   const savePeritaje = async () => {
     if (!formData.vehicles_fk_id || !formData.clients_fk_id) {
       setError("Por favor, selecciona un vehículo y un cliente");
@@ -171,6 +255,21 @@ export default function PeritajeForm() {
       setLoading(false);
     }
   };
+
+  const confidencePct = (() => {
+    const raw = Number(analysisResult?.confidence_score ?? 0);
+    const pct = raw <= 1 ? raw * 100 : raw;
+    return Math.round(pct);
+  })();
+
+  const severityClass = (() => {
+    const severity = String(analysisResult?.damage_severity || "").toLowerCase();
+    if (["severo", "alto", "high"].includes(severity)) return "bg-red-100 text-red-800";
+    if (["moderado", "medio", "medium"].includes(severity)) return "bg-amber-100 text-amber-800";
+    return "bg-green-100 text-green-800";
+  })();
+
+  const partLabel = (p: any) => (typeof p === "string" ? p : p?.repuesto_id || p?.description || p?.code || "—");
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto p-4 lg:p-8">
@@ -218,11 +317,11 @@ export default function PeritajeForm() {
         </button>
         <button
           onClick={() => setActiveTab("analysis")}
-          disabled={!formData.id || !uploadedVideoUrl}
+          disabled={!formData.id || (!uploadedVideoUrl && !analysisResult)}
           className={`pb-3 transition-colors ${
             activeTab === "analysis"
               ? "border-b-2 border-primary text-primary"
-              : !formData.id || !uploadedVideoUrl
+              : !formData.id || (!uploadedVideoUrl && !analysisResult)
               ? "text-gray-300 cursor-not-allowed"
               : "text-gray-400 hover:text-gray-600"
           }`}
@@ -347,7 +446,9 @@ export default function PeritajeForm() {
               <i className="fas fa-video text-2xl"></i>
             </div>
             <h4 className="text-lg font-bold text-secondary">Grabación de Multimedia</h4>
-            <p className="text-sm text-gray-500 mt-1">Sube o graba un video para inspeccionar daños con Gemini AI</p>
+            <p className="text-sm text-gray-500 mt-1">
+              Graba un video o sube un archivo: se convierte a base64 y Gemini AI inspecciona los daños
+            </p>
           </div>
 
           <div className="bg-gray-900 rounded-2xl aspect-video overflow-hidden flex items-center justify-center relative shadow-inner">
@@ -376,6 +477,75 @@ export default function PeritajeForm() {
             {recording && (
               <div className="absolute top-4 left-4 bg-red-600 text-white font-bold text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 animate-pulse">
                 <span className="w-2.5 h-2.5 bg-white rounded-full"></span> GRABANDO
+              </div>
+            )}
+          </div>
+
+          <div className="border-2 border-dashed border-gray-200 rounded-2xl p-5 bg-gray-50/60">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,video/*,audio/*"
+              className="hidden"
+              onChange={handleFileSelected}
+            />
+            {!mediaFile ? (
+              <div className="text-center">
+                <i className="fas fa-file-arrow-up text-2xl text-primary mb-1.5"></i>
+                <p className="text-sm font-bold text-secondary">O sube un archivo (imagen, video o audio)</p>
+                <p className="text-xs text-gray-500 mt-0.5 mb-3">
+                  Se convierte a <span className="font-semibold text-emerald-600">base64</span> antes de
+                  enviarlo a la IA generativa
+                </p>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={converting}
+                  className="px-4 py-2 border-2 border-primary text-primary bg-white rounded-xl hover:bg-primary/5 transition font-bold text-sm"
+                >
+                  <i className="fas fa-folder-open mr-1.5"></i>
+                  {converting ? "Convirtiendo a base64..." : "Seleccionar archivo"}
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row items-center gap-4">
+                <div className="w-28 h-20 bg-gray-900 rounded-xl overflow-hidden flex items-center justify-center shrink-0">
+                  {mediaFile.kind === "image" ? (
+                    <img src={mediaFile.dataUrl} alt={mediaFile.name} className="w-full h-full object-cover" />
+                  ) : mediaFile.kind === "video" ? (
+                    <video src={mediaFile.dataUrl} controls className="w-full h-full object-contain" />
+                  ) : mediaFile.kind === "audio" ? (
+                    <audio src={mediaFile.dataUrl} controls className="w-24" />
+                  ) : (
+                    <i className="fas fa-file text-white text-2xl"></i>
+                  )}
+                </div>
+                <div className="flex-1 text-center sm:text-left min-w-0">
+                  <p className="text-sm font-bold text-secondary truncate">{mediaFile.name}</p>
+                  <p className="text-xs text-gray-500">
+                    {formatBytes(mediaFile.size)} · {mediaFile.mimeType}
+                  </p>
+                  <span className="inline-flex items-center gap-1.5 mt-1.5 px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[11px] font-bold">
+                    <i className="fas fa-check"></i> Convertido a base64
+                  </span>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <button
+                    onClick={processFileWithAi}
+                    disabled={analyzing}
+                    className="px-4 py-2.5 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition font-bold text-sm shadow-soft flex items-center gap-2"
+                  >
+                    <i className={`fas fa-brain ${analyzing ? "animate-pulse" : ""}`}></i>
+                    {analyzing ? "Procesando..." : "Procesar con IA"}
+                  </button>
+                  <button
+                    onClick={discardMediaFile}
+                    disabled={analyzing}
+                    title="Descartar archivo"
+                    className="px-3 py-2.5 border-2 border-gray-200 text-gray-600 bg-white rounded-xl hover:bg-gray-50 transition font-bold text-sm"
+                  >
+                    <i className="fas fa-xmark"></i>
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -418,6 +588,7 @@ export default function PeritajeForm() {
                 <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-xl font-bold text-sm border border-green-200">
                   <i className="fas fa-circle-check"></i> Video guardado y listo para análisis
                 </div>
+
                 <div className="flex justify-center gap-3">
                   <button
                     onClick={runAnalysis}
@@ -440,15 +611,26 @@ export default function PeritajeForm() {
         </div>
       )}
 
+      {/* Tab content: Analysis (sin resultados aún) */}
+      {activeTab === "analysis" && !analysisResult && (
+        <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-8 text-center">
+          <i className="fas fa-brain text-3xl text-purple-300 mb-3"></i>
+          <p className="text-sm text-gray-500 max-w-md mx-auto">
+            Todavía no hay análisis. Graba un video o sube un archivo (imagen, video o audio) en la pestaña
+            anterior y ejecuta el análisis con IA generativa.
+          </p>
+        </div>
+      )}
+
       {/* Tab content: Analysis */}
       {activeTab === "analysis" && analysisResult && (
         <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-6 space-y-6">
           <div className="border-b pb-4 flex items-center justify-between flex-wrap gap-3">
             <h3 className="text-lg font-bold text-secondary flex items-center gap-2">
-              <i className="fas fa-brain text-purple-600"></i> Resultados del Análisis Gemini 2.5 Pro
+              <i className="fas fa-brain text-purple-600"></i> Resultados del Análisis Gemini AI
             </h3>
             <div className="px-3 py-1 bg-purple-50 text-purple-700 rounded-full font-bold text-xs border border-purple-200 flex items-center gap-1.5">
-              <i className="fas fa-circle-check"></i> Confianza: {Math.round((analysisResult.confidence_score ?? 0) * 100)}%
+              <i className="fas fa-circle-check"></i> Confianza: {confidencePct}%
             </div>
           </div>
 
@@ -462,11 +644,7 @@ export default function PeritajeForm() {
             <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
               <span className="text-xs text-gray-500 font-semibold uppercase">Gravedad / Severidad</span>
               <p className="text-base font-bold text-secondary mt-1">
-                <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                  analysisResult.damage_severity === "alto" || analysisResult.damage_severity === "high" ? "bg-red-100 text-red-800" :
-                  analysisResult.damage_severity === "medio" || analysisResult.damage_severity === "medium" ? "bg-amber-100 text-amber-800" :
-                  "bg-green-100 text-green-800"
-                }`}>
+                <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${severityClass}`}>
                   {analysisResult.damage_severity}
                 </span>
               </p>
@@ -488,7 +666,7 @@ export default function PeritajeForm() {
                 {analysisResult.affected_parts?.map((p: any, i: any) => (
                   <li key={i} className="flex items-center gap-2.5 text-sm text-gray-700 bg-gray-50 px-3.5 py-2.5 rounded-xl border border-gray-100">
                     <i className="fas fa-circle-exclamation text-amber-500"></i>
-                    {p}
+                    {partLabel(p)}
                   </li>
                 )) || <p className="text-gray-500 text-sm">Ninguna parte afectada detectada</p>}
               </ul>
@@ -503,10 +681,10 @@ export default function PeritajeForm() {
                   <li key={i} className="flex items-center justify-between text-sm text-gray-700 bg-gray-50 px-3.5 py-2.5 rounded-xl border border-gray-100">
                     <span className="flex items-center gap-2.5 font-semibold">
                       <i className="fas fa-screwdriver-wrench text-gray-400"></i>
-                      {p.repuesto_id}
+                      {partLabel(p)}
                     </span>
                     <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs font-bold rounded">
-                      x{p.quantity}
+                      x{typeof p === "string" ? 1 : p?.quantity ?? 1}
                     </span>
                   </li>
                 )) || <p className="text-gray-500 text-sm">No se requieren repuestos adicionales</p>}

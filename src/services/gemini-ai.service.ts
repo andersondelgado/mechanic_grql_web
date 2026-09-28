@@ -74,6 +74,38 @@ export interface SuggestedPart {
   urgency?: string;
 }
 
+export interface PeritajeMediaPayload {
+  /** Archivo convertido a base64 (sin prefijo data:) — imagen, video o audio */
+  file_base64?: string;
+  mime_type?: string;
+  /** Alternativa: video ya subido a la nube (cuando el base64 no cabe inline) */
+  video_url?: string;
+  inspection_cards_fk_id?: string;
+  prompt_context?: string;
+  vehicle_context?: string | Record<string, unknown>;
+  observations?: string;
+  /** false = no persistir en inspection_analysis (solo devolver el dictamen) */
+  persist?: boolean;
+}
+
+export interface PeritajeAnalysisResult {
+  damage_type?: string;
+  damage_severity?: string;
+  affected_parts?: string[];
+  repair_estimated_hours?: number;
+  parts_needed?: string[];
+  confidence_score?: number;
+  observations?: string;
+  recommended_actions?: string[];
+  status?: string;
+  /** Datos devueltos por la lambda */
+  analysis_id?: string;
+  source?: 'base64' | 'video_url';
+  mock_generated?: boolean;
+  warning?: string;
+  [key: string]: any;
+}
+
 /**
  * Construye el WorkflowRequest con el step del copiloto Gemini.
  * Reproduce exactamente la estructura que ELYTRABIT envía a su lambda médica.
@@ -241,6 +273,29 @@ export const GeminiAiService = {
       console.warn('Fallback a simulación local de repuestos sugeridos:', err);
       return LOCAL_MOCK_PARTS;
     }
+  },
+
+  /**
+   * Peritaje: archivo (imagen/video/audio) ya convertido a base64 -> dictamen Gemini.
+   * La lambda lo procesa multimodalmente y lo persiste en `inspection_analysis`.
+   *
+   * A diferencia de los demás métodos NO cae en un mock: un dictamen simulado
+   * se guardaría como si fuera real. Los errores se propagan a la UI.
+   */
+  async analyzePeritajeMedia(payload: PeritajeMediaPayload): Promise<PeritajeAnalysisResult> {
+    const data = await invokeCopilot('analyze_peritaje_media', { ...payload });
+    if (data?.error) {
+      const message =
+        typeof data.error === 'string' ? data.error : data.error.message || JSON.stringify(data.error);
+      throw new Error(message);
+    }
+    // La lambda responde { success, analysis, analysis_id, source }
+    const analysis = data?.analysis ?? data;
+    return {
+      ...(analysis && typeof analysis === 'object' ? analysis : {}),
+      analysis_id: data?.analysis_id,
+      source: data?.source,
+    };
   },
 };
 
