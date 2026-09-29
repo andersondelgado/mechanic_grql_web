@@ -17,7 +17,7 @@ import {
   extractData,
   extractPagination,
 } from './workflow.types';
-import { BASE_URL, DB_LAMBDAS, API_KEY, lambdaDecode } from './config';
+import { BASE_URL, DB_LAMBDAS, DB_NAME, API_KEY, LAMBDA_FORM_ENDPOINT, lambdaDecode } from './config';
 
 // ─── Interfaces y Tipos del Cliente HTTP ─────────────────────────────────────
 export interface RequestOptions extends Omit<RequestInit, 'body'> {
@@ -266,6 +266,70 @@ export async function workflowJson<T = any>(
 
   const url = `/api/secure-rQL/lambdas-json-run-node?db=${DB_LAMBDAS}&table=${workspace}&id=${lambdaId}&format=json`;
   const res = await apiClient.post<T>(url, request, options);
+  return res.data;
+}
+
+// ─── Core: workflowFormData (subida binaria + workflow) ──────────────────────
+/**
+ * Bucket request para que el servidor suba el archivo binario al bucket
+ * antes de ejecutar la lambda (espejo de Lusiana `environment.bucketRequest`).
+ */
+export function buildBucketRequest(): Record<string, unknown> {
+  return {
+    db: DB_NAME,
+    storage: 'bucket',
+    name: 'bucket',
+    headerKey: 'X-Grql-Auth',
+    headerValue: API_KEY,
+    urlBucket: `${BASE_URL}/api/secure-rQL/put-to-bucket`,
+  };
+}
+
+export interface FormDataWorkflowOptions {
+  lambdaName?: string;
+  workspace?: string;
+  /** Agrega `&async=true` (la lambda responde en background). */
+  async?: boolean;
+  /** Nombre del archivo en el form-data (por defecto el del File). */
+  fileName?: string;
+  timeout?: number;
+  skipAuth?: boolean;
+  signal?: AbortSignal;
+}
+
+/**
+ * Envía un workflow junto con un archivo binario (multipart/form-data).
+ *
+ * El servidor sube el archivo al bucket y entrega `fileMeta` / `fileMetas` a la
+ * lambda (`injectFileMeta` inyecta `attachment_file`, `attachmentId` y
+ * `fileMetas` en el body de cada step), evitando el envío de base64 en el JSON.
+ */
+export async function workflowFormData<T = any>(
+  request: WorkflowRequest | Record<string, any>,
+  file: Blob,
+  options: FormDataWorkflowOptions = {}
+): Promise<T> {
+  const lambdaName = options.lambdaName || 'workflow_taller_js';
+  const workspace = options.workspace || 'lambda';
+  const lambdaId = lambdaDecode(lambdaName);
+  if (!lambdaId) throw new Error(`Lambda no encontrada: ${lambdaName}`);
+
+  // El form field `request` lleva el objeto `{ flows: [...] }` (sin el wrapper `request`)
+  const payload = (request as any)?.request ?? request;
+
+  const formData = new FormData();
+  formData.append('bucket_request', JSON.stringify(buildBucketRequest()));
+  formData.append('files', file, options.fileName || (file instanceof File ? file.name : 'archivo.bin'));
+  formData.append('request', JSON.stringify(payload));
+
+  let query = `db=${DB_LAMBDAS}&table=${workspace}&id=${lambdaId}&format=json`;
+  if (options.async) query += '&async=true';
+
+  const res = await apiClient.post<T>(`${LAMBDA_FORM_ENDPOINT}?${query}`, formData, {
+    timeout: options.timeout,
+    skipAuth: options.skipAuth,
+    signal: options.signal,
+  });
   return res.data;
 }
 

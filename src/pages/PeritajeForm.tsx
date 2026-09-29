@@ -174,38 +174,17 @@ export default function PeritajeForm() {
   };
 
   /**
-   * Envía el archivo convertido a base64 a la IA generativa (Gemini).
-   * - Imagen / audio: base64 inline directo al modelo.
-   * - Video: primero se sube a la nube (en base64) y la IA lo procesa por URL;
-   *   si la subida falla, se intenta con el base64 inline.
+   * Envía el archivo original (binario) a la IA generativa (Gemini).
+   * Sube en multipart al bucket: la petición JSON queda liviana (sin base64 gigante)
+   * y la lambda analiza el archivo desde el almacenamiento.
    */
   const processFileWithAi = async () => {
-    if (!mediaFile) return;
+    if (!mediaFile?.file) return;
     setAnalyzing(true);
     setError(null);
     try {
-      const isInlineSafe = mediaFile.base64.length <= 14 * 1024 * 1024;
-      let videoUrlForAi = "";
-
-      if (mediaFile.kind === "video" && formData.id) {
-        try {
-          const uploadResult = await uploadVideo(mediaFile.dataUrl, formData.id);
-          videoUrlForAi = uploadResult.video_url;
-          setUploadedVideoUrl(uploadResult.video_url);
-          setVideoUrl(uploadResult.video_url);
-        } catch {
-          if (!isInlineSafe) {
-            throw new Error("El video es demasiado grande para enviarlo inline. Verifica la subida a la nube.");
-          }
-        }
-      } else if (!isInlineSafe) {
-        throw new Error("El archivo supera el tamaño máximo que Gemini acepta en línea (~10 MB).");
-      }
-
-      const result = await GeminiAiService.analyzePeritajeMedia({
-        file_base64: videoUrlForAi ? undefined : mediaFile.base64,
+      const result = await GeminiAiService.analyzePeritajeMediaFile(mediaFile.file, {
         mime_type: mediaFile.mimeType,
-        video_url: videoUrlForAi || undefined,
         inspection_cards_fk_id: formData.id,
         prompt_context:
           "Peritaje de daños vehicular a partir de un archivo multimedia subido por el inspector.",

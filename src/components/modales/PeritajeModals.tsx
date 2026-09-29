@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import { uploadVideo, analyzeVideo } from "../../api/client";
+import { analyzeVideo } from "../../api/client";
 import { GeminiAiService } from "../../services/gemini-ai.service";
 import { Base64File, fileToBase64, formatBytes } from "../../utils/base64";
 import { useGrqlList } from "../../hooks/use-grql";
@@ -109,28 +109,15 @@ export default function PeritajeModals({ type, isOpen, onClose, onSuccess, data 
     }
   };
 
-  /** Archivo (ya en base64) -> Gemini. El video primero se sube a la nube para analizarlo por URL. */
+  /** Archivo original (binario) -> subida multipart al bucket -> Gemini. */
   const handleAnalyzeFile = async () => {
-    if (!mediaFile) return;
+    if (!mediaFile?.file) return;
     setAnalyzing(true);
     setError(null);
     try {
       const cardId = data?.id || data?.card_id || "";
-      let videoUrlForAi = "";
-      if (mediaFile.kind === "video" && cardId) {
-        try {
-          const upload = await uploadVideo(mediaFile.dataUrl, cardId);
-          videoUrlForAi = upload.video_url;
-        } catch {
-          if (mediaFile.base64.length > 14 * 1024 * 1024) {
-            throw new Error("El video es demasiado grande para enviarlo inline a la IA.");
-          }
-        }
-      }
-      const result = await GeminiAiService.analyzePeritajeMedia({
-        file_base64: videoUrlForAi ? undefined : mediaFile.base64,
+      const result = await GeminiAiService.analyzePeritajeMediaFile(mediaFile.file, {
         mime_type: mediaFile.mimeType,
-        video_url: videoUrlForAi || undefined,
         inspection_cards_fk_id: cardId || undefined,
         prompt_context: "Peritaje de daños vehicular a partir de un archivo multimedia subido por el inspector.",
       });

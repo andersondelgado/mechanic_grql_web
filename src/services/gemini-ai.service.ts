@@ -8,12 +8,15 @@
  *  3. Desanida la respuesta ` { gemini_copilot: { customFunction: <payload> } } `.
  *  4. Ante cualquier fallo de red/lambda devuelve un mock local para no romper la UI.
  */
-import { workflowJson } from '../api/client';
+import { workflowJson, workflowFormData } from '../api/client';
 import type { WorkflowRequest } from '../api/workflow.types';
+import { fileToBase64 } from '../utils/base64';
 
 const WORKFLOW_NAME = 'workflow_taller';
 const STEP_NAME = 'gemini_copilot';
 const AI_TIMEOUT_MS = 120_000;
+/** ~10 MB binarios = ~14 MB de base64: límite inline de Gemini */
+const INLINE_MAX_BYTES = 10 * 1024 * 1024;
 
 export interface DraftQuotePayload {
   audio_base64?: string;
@@ -80,6 +83,9 @@ export interface PeritajeMediaPayload {
   mime_type?: string;
   /** Alternativa: video ya subido a la nube (cuando el base64 no cabe inline) */
   video_url?: string;
+  /** Metadatos del archivo subido por multipart (informativo para la lambda) */
+  file_name?: string;
+  file_size?: number;
   inspection_cards_fk_id?: string;
   prompt_context?: string;
   vehicle_context?: string | Record<string, unknown>;
@@ -100,7 +106,9 @@ export interface PeritajeAnalysisResult {
   status?: string;
   /** Datos devueltos por la lambda */
   analysis_id?: string;
-  source?: 'base64' | 'video_url';
+  source?: 'base64' | 'video_url' | 'bucket_file';
+  /** Id del archivo subido al bucket (cuando se envía por multipart) */
+  file_id?: string;
   mock_generated?: boolean;
   warning?: string;
   [key: string]: any;
@@ -164,6 +172,22 @@ async function invokeCopilot(action: string, body: Record<string, unknown>): Pro
   }
 
   return unwrapCopilotResponse(response);
+}
+
+/** Lanza si la lambda respondió un error; devuelve el dictamen normalizado. */
+function toAnalysisResult(data: any): PeritajeAnalysisResult {
+  if (data?.error) {
+    const message =
+      typeof data.error === 'string' ? data.error : data.error.message || JSON.stringify(data.error);
+    throw new Error(message);
+  }
+  const analysis = data?.analysis ?? data;
+  return {
+    ...(analysis && typeof analysis === 'object' ? analysis : {}),
+    analysis_id: data?.analysis_id,
+    source: data?.source,
+    file_id: data?.file_id,
+  };
 }
 
 function getLocalMockDraft(): QuoteDraftResult {
@@ -283,19 +307,45 @@ export const GeminiAiService = {
    * se guardaría como si fuera real. Los errores se propagan a la UI.
    */
   async analyzePeritajeMedia(payload: PeritajeMediaPayload): Promise<PeritajeAnalysisResult> {
-    const data = await invokeCopilot('analyze_peritaje_media', { ...payload });
-    if (data?.error) {
-      const message =
-        typeof data.error === 'string' ? data.error : data.error.message || JSON.stringify(data.error);
-      throw new Error(message);
+    return toAnalysisResult(await invokeCopilot('analyze_peritaje_media', { ...payload }));
+  },
+
+  /**
+   * Peritaje: archivo binario original -> subida multipart al bucket -> dictamen Gemini.
+   *
+   * El archivo viaja como binario (no como base64 en el JSON), el servidor lo sube al
+   * bucket y la lambda lo analiza por URL. Si la subida binaria falla y el archivo
+   * entra en el límite inline, se reintenta con el base64 (camino clásico).
+   */
+  async analyzePeritajeMediaFile(file: File, payload: PeritajeMediaPayload): Promise<PeritajeAnalysisResult> {
+    try {
+      const request = buildCopilotRequest('analyze_peritaje_media', {
+        ...payload,
+        mime_type: payload.mime_type || file.type || undefined,
+        file_name: file.name,
+        file_size: file.size,
+      });
+      const response = await workflowFormData(request, file, { timeout: AI_TIMEOUT_MS, fileName: file.name });
+
+      const lambdaError = response?.error;
+      if (lambdaError) {
+        const message =
+          typeof lambdaError === 'string' ? lambdaError : lambdaError.message || JSON.stringify(lambdaError);
+        throw new Error(message);
+      }
+      return toAnalysisResult(unwrapCopilotResponse(response));
+    } catch (uploadError) {
+      if (file.size > INLINE_MAX_BYTES) throw uploadError;
+      console.warn('Fallo la subida binaria del peritaje; se reintenta con base64 inline:', uploadError);
+      const converted = await fileToBase64(file);
+      return toAnalysisResult(
+        await invokeCopilot('analyze_peritaje_media', {
+          ...payload,
+          file_base64: converted.base64,
+          mime_type: payload.mime_type || converted.mimeType,
+        })
+      );
     }
-    // La lambda responde { success, analysis, analysis_id, source }
-    const analysis = data?.analysis ?? data;
-    return {
-      ...(analysis && typeof analysis === 'object' ? analysis : {}),
-      analysis_id: data?.analysis_id,
-      source: data?.source,
-    };
   },
 };
 

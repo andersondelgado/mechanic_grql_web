@@ -14,6 +14,8 @@ export interface Base64File {
   /** Data URL completa (`data:image/png;base64,...`) */
   dataUrl: string;
   kind: FileKind;
+  /** Archivo original: se sube como binario (multipart) para evitar requests gigantes en base64 */
+  file: File;
 }
 
 export type FileKind = 'image' | 'video' | 'audio' | 'other';
@@ -47,6 +49,7 @@ export function fileToBase64(file: File): Promise<Base64File> {
         base64: stripDataUrl(dataUrl),
         dataUrl,
         kind: detectFileKind(file.type),
+        file,
       });
     };
     reader.readAsDataURL(file);
