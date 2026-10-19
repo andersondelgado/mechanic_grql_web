@@ -4,7 +4,7 @@ import FacturaModal from "../components/modales/FacturaModal";
 
 export default function Facturas() {
   const [page, setPage] = useState(1);
-  const { data, meta, loading, error, remove, refetch } = useGrqlList<any[]>("GestionTallerProd_customer_account_statements", {
+  const { data, meta, loading, error, remove, refetch } = useGrqlList<any[]>("GestionTallerProd_accounts_receivable", {
     pagination: { page, size: 10 }
   });
   const [searchTerm, setSearchTerm] = useState("");

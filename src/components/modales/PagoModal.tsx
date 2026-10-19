@@ -36,9 +36,9 @@ export default function PagoModal({ isOpen, onClose, onSuccess, pago }: PagoModa
     setError(null);
     try {
       if (pago?.id) {
-        await updateEntity("GestionTallerProd_payments_and_transactions", pago.id, formData);
+        await updateEntity("GestionTallerProd_financial_transactions", pago.id, formData);
       } else {
-        await createEntity("GestionTallerProd_payments_and_transactions", formData);
+        await createEntity("GestionTallerProd_financial_transactions", formData);
       }
       onSuccess();
       onClose();

@@ -76,9 +76,9 @@ export default function FacturaModal({ isOpen, onClose, onSuccess, factura }: Fa
     setError(null);
     try {
       if (factura?.id) {
-        await updateEntity("GestionTallerProd_customer_account_statements", factura.id, formData);
+        await updateEntity("GestionTallerProd_accounts_receivable", factura.id, formData);
       } else {
-        await createEntity("GestionTallerProd_customer_account_statements", formData);
+        await createEntity("GestionTallerProd_accounts_receivable", formData);
       }
       onSuccess();
       onClose();

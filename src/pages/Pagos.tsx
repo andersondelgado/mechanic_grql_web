@@ -4,7 +4,7 @@ import PagoModal from "../components/modales/PagoModal";
 
 export default function Pagos() {
   const [page, setPage] = useState(1);
-  const { data, meta, loading, error, remove, refetch } = useGrqlList<any[]>("GestionTallerProd_payments_and_transactions", {
+  const { data, meta, loading, error, remove, refetch } = useGrqlList<any[]>("GestionTallerProd_financial_transactions", {
     pagination: { page, size: 10 }
   });
   const [searchTerm, setSearchTerm] = useState("");
