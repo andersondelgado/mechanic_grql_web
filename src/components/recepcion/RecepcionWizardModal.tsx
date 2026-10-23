@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createEntity, updateEntity } from '../../api/client';
 import { useGrqlList } from '../../hooks/use-grql';
 import type { VehicleReceipt, ChecklistItem, DamagePoint } from '../../types/entities';
+import { resolveVehicleId, resolveClientId, getVehiclesForClient } from '../../utils/entityHelpers';
 import FuelGaugeSelector from './FuelGaugeSelector';
 import VehicleDamageCanvas from './VehicleDamageCanvas';
 import InspectionChecklistGrid, { EXTERNAL_GROUPS, INTERNAL_GROUPS } from './InspectionChecklistGrid';
@@ -34,9 +35,15 @@ export const RecepcionWizardModal: React.FC<RecepcionWizardModalProps> = ({
   const [isNewVehicle, setIsNewVehicle] = useState(false);
 
   // Entities lists
-  const { data: vehiculos, refetch: refreshVehiculos } = useGrqlList<any[]>('GestionTallerProd_vehicles');
-  const { data: empleados } = useGrqlList<any[]>('GestionTallerProd_employees');
-  const { data: clientes, refetch: refreshClientes } = useGrqlList<any[]>('GestionTallerProd_clients');
+  const { data: vehiculos, refetch: refreshVehiculos } = useGrqlList<any[]>('GestionTallerProd_vehicles', {
+    pagination: { page: 1, size: 500 }
+  });
+  const { data: empleados } = useGrqlList<any[]>('GestionTallerProd_employees', {
+    pagination: { page: 1, size: 500 }
+  });
+  const { data: clientes, refetch: refreshClientes } = useGrqlList<any[]>('GestionTallerProd_clients', {
+    pagination: { page: 1, size: 500 }
+  });
 
   // Form State
   const [formData, setFormData] = useState<VehicleReceipt>({
@@ -100,19 +107,8 @@ export const RecepcionWizardModal: React.FC<RecepcionWizardModalProps> = ({
         const vehicle = recepcion.vehicles?.[0];
         const client = recepcion.clients?.[0] || vehicle?.clients?.[0];
 
-        let vId = recepcion.vehicles_fk_id;
-        if (Array.isArray(vId) && vId.length > 0) {
-          vId = typeof vId[0] === 'object' ? (vId[0].id || vId[0].vehicle_id) : vId[0];
-        } else if (!vId) {
-          vId = vehicle?.id || vehicle?.vehicle_id || '';
-        }
-
-        let cId = recepcion.clients_fk_id;
-        if (Array.isArray(cId) && cId.length > 0) {
-          cId = typeof cId[0] === 'object' ? (cId[0].id || cId[0].client_id) : cId[0];
-        } else if (!cId) {
-          cId = client?.id || client?.client_id || '';
-        }
+        const vId = resolveVehicleId(recepcion, vehiculos || undefined);
+        const cId = resolveClientId(recepcion, clientes || undefined);
 
         setFormData({
           ...recepcion,
@@ -193,7 +189,12 @@ export const RecepcionWizardModal: React.FC<RecepcionWizardModalProps> = ({
       setSearchQuery('');
       setIsSearchDropdownOpen(false);
     }
-  }, [isOpen, recepcion]);
+  }, [isOpen, recepcion, vehiculos, clientes]);
+
+  const clientVehicles = useMemo(() => {
+    if (!formData.clients_fk_id) return [];
+    return getVehiclesForClient(formData.clients_fk_id, vehiculos || undefined, clientes || undefined);
+  }, [vehiculos, formData.clients_fk_id, clientes]);
 
   if (!isOpen) return null;
 
@@ -205,8 +206,25 @@ export const RecepcionWizardModal: React.FC<RecepcionWizardModalProps> = ({
       return;
     }
 
+    const cVehicles = getVehiclesForClient(selectedClient || clientId, vehiculos || undefined, clientes || undefined);
+    let vehicleUpdate: any = {};
+    if (cVehicles.length > 0 && (!formData.vehicles_fk_id || !cVehicles.some((v: any) => (v.id || v.vehicle_id) === formData.vehicles_fk_id))) {
+      const firstVeh = cVehicles[0];
+      vehicleUpdate = {
+        vehicles_fk_id: firstVeh.id || firstVeh.vehicle_id,
+        license_plate: firstVeh.license_plate || '',
+        brand: firstVeh.brand || '',
+        model: firstVeh.model || '',
+        year: firstVeh.year || '',
+        color: firstVeh.color || '',
+        mileage: firstVeh.mileage || ''
+      };
+      setIsNewVehicle(false);
+    }
+
     setFormData(prev => ({
       ...prev,
+      ...vehicleUpdate,
       clients_fk_id: clientId,
       owner_name: selectedClient.client_name || prev.owner_name,
       owner_tax_id: selectedClient.tax_id || prev.owner_tax_id,
@@ -697,6 +715,39 @@ export const RecepcionWizardModal: React.FC<RecepcionWizardModalProps> = ({
                       )}
                     </div>
                   </div>
+
+                  {clientVehicles.length > 1 && (
+                    <div className="mb-4 p-2.5 bg-blue-50/80 rounded-xl border border-blue-200">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-bold text-blue-800 flex items-center gap-1.5">
+                          <i className="fas fa-layer-group text-blue-600"></i>
+                          Vehículos registrados del cliente ({clientVehicles.length}):
+                        </span>
+                        <span className="text-[10px] text-blue-600 font-medium">Clic para alternar</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {clientVehicles.map((v: any) => {
+                          const vId = v.id || v.vehicle_id;
+                          const isSelected = formData.vehicles_fk_id === vId;
+                          return (
+                            <button
+                              key={vId}
+                              type="button"
+                              onClick={() => handleVehicleSelect(vId)}
+                              className={`px-2.5 py-1 text-xs font-bold rounded-lg border transition flex items-center gap-1.5 ${
+                                isSelected
+                                  ? 'bg-primary text-white border-primary shadow-sm'
+                                  : 'bg-white text-gray-700 border-gray-300 hover:border-primary hover:text-primary'
+                              }`}
+                            >
+                              <span>[{v.license_plate}]</span>
+                              <span className="font-normal opacity-90">{v.brand} {v.model}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                     <div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { createEntity, updateEntity } from "../../api/client";
 import { useGrqlList } from "../../hooks/use-grql";
+import { resolveClientId } from "../../utils/entityHelpers";
 
 interface FacturaModalProps {
   isOpen: boolean;
@@ -19,17 +20,14 @@ export default function FacturaModal({ isOpen, onClose, onSuccess, factura }: Fa
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: clientes } = useGrqlList<any[]>("GestionTallerProd_clients");
+  const { data: clientes } = useGrqlList<any[]>("GestionTallerProd_clients", {
+    pagination: { page: 1, size: 500 }
+  });
 
   useEffect(() => {
     if (isOpen) {
       if (factura) {
-        let clientId = factura.clients_fk_id;
-        if (Array.isArray(clientId) && clientId.length > 0) {
-          clientId = typeof clientId[0] === 'object' ? (clientId[0].id || clientId[0].client_id) : clientId[0];
-        } else if (!clientId && Array.isArray(factura.clients) && factura.clients.length > 0) {
-          clientId = factura.clients[0]?.id || factura.clients[0]?.client_id;
-        }
+        let clientId = resolveClientId(factura, clientes || undefined);
 
         const rawDate = factura.transaction_date || factura.created_at || '';
         const transactionDate = rawDate ? String(rawDate).replace(' ', 'T').split('T')[0] : new Date().toISOString().split('T')[0];

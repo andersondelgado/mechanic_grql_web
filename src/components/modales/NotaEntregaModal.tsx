@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { createEntity, updateEntity } from "../../api/client";
 import { useGrqlList } from "../../hooks/use-grql";
+import {
+  resolveVehicleId,
+  resolveClientId,
+  findVehicleForClient,
+  getVehiclesForClient,
+  findClientForVehicle
+} from "../../utils/entityHelpers";
 
 interface NotaEntregaModalProps {
   isOpen: boolean;
@@ -19,41 +26,34 @@ export default function NotaEntregaModal({ isOpen, onClose, onSuccess, nota }: N
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: clientes } = useGrqlList<any[]>("GestionTallerProd_clients");
-  const { data: vehiculos } = useGrqlList<any[]>("GestionTallerProd_vehicles");
+  const { data: clientes } = useGrqlList<any[]>("GestionTallerProd_clients", {
+    pagination: { page: 1, size: 500 }
+  });
+  const { data: vehiculos } = useGrqlList<any[]>("GestionTallerProd_vehicles", {
+    pagination: { page: 1, size: 500 }
+  });
 
   useEffect(() => {
     if (isOpen) {
       if (nota) {
-        let clientId = nota.clients_fk_id;
-        if (Array.isArray(clientId) && clientId.length > 0) {
-          clientId = typeof clientId[0] === 'object' ? (clientId[0].id || clientId[0].client_id) : clientId[0];
-        } else if (!clientId && Array.isArray(nota.clients) && nota.clients.length > 0) {
-          clientId = nota.clients[0]?.id || nota.clients[0]?.client_id;
-        }
-
-        let vehicleId = nota.vehicles_fk_id;
-        if (Array.isArray(vehicleId) && vehicleId.length > 0) {
-          vehicleId = typeof vehicleId[0] === 'object' ? (vehicleId[0].id || vehicleId[0].vehicle_id) : vehicleId[0];
-        } else if (!vehicleId && Array.isArray(nota.vehicles) && nota.vehicles.length > 0) {
-          vehicleId = nota.vehicles[0]?.id || nota.vehicles[0]?.vehicle_id;
-        }
+        const clientId = resolveClientId(nota, clientes || undefined);
+        const vehicleId = resolveVehicleId(nota, vehiculos || undefined);
 
         const rawDate = nota.note_date || nota.created_at || '';
         const noteDate = rawDate ? String(rawDate).replace(' ', 'T').split('T')[0] : new Date().toISOString().split('T')[0];
 
-        setFormData({
+        setFormData((prev: any) => ({
           ...nota,
-          clients_fk_id: clientId || '',
-          vehicles_fk_id: vehicleId || '',
+          clients_fk_id: clientId || prev.clients_fk_id || '',
+          vehicles_fk_id: vehicleId || prev.vehicles_fk_id || '',
           note_date: noteDate,
-          client_name: nota.client_name || nota.clients?.[0]?.client_name || '',
-          license_plate: nota.license_plate || nota.vehicles?.[0]?.license_plate || '',
-          brand: nota.brand || nota.vehicles?.[0]?.brand || '',
-          model: nota.model || nota.vehicles?.[0]?.model || '',
+          client_name: nota.client_name || nota.clients?.[0]?.client_name || prev.client_name || '',
+          license_plate: nota.license_plate || nota.vehicles?.[0]?.license_plate || prev.license_plate || '',
+          brand: nota.brand || nota.vehicles?.[0]?.brand || prev.brand || '',
+          model: nota.model || nota.vehicles?.[0]?.model || prev.model || '',
           subtotal: Number(nota.subtotal || 0),
           total: Number(nota.total || 0)
-        });
+        }));
       } else {
         setFormData({
           note_date: new Date().toISOString().split('T')[0],
@@ -64,7 +64,7 @@ export default function NotaEntregaModal({ isOpen, onClose, onSuccess, nota }: N
       }
       setError(null);
     }
-  }, [isOpen, nota]);
+  }, [isOpen, nota, clientes, vehiculos]);
 
   if (!isOpen) return null;
 
@@ -73,25 +73,67 @@ export default function NotaEntregaModal({ isOpen, onClose, onSuccess, nota }: N
   };
 
   const handleClientSelect = (clientId: string) => {
-    const client = clientes?.find((c: any) => c.id === clientId || c.client_id === clientId);
-    setFormData((prev: any) => ({
-      ...prev,
-      clients_fk_id: clientId,
-      client_name: client?.client_name || prev.client_name || '',
-      tax_id: client?.tax_id || prev.tax_id || '',
-    }));
+    const client = clientes?.find((c: any) => (c.id || c.client_id || c._id) === clientId);
+    const clientVehiclesList = getVehiclesForClient(client, vehiculos || undefined);
+
+    setFormData((prev: any) => {
+      const updated: any = {
+        ...prev,
+        clients_fk_id: clientId,
+        client_name: client?.client_name || prev.client_name || '',
+        tax_id: client?.tax_id || prev.tax_id || '',
+      };
+
+      const currentIsOfClient = clientVehiclesList.some(
+        (v: any) => (v.id || v.vehicle_id || v._id) === prev.vehicles_fk_id
+      );
+
+      const targetVehicle = currentIsOfClient
+        ? clientVehiclesList.find((v: any) => (v.id || v.vehicle_id || v._id) === prev.vehicles_fk_id)
+        : (clientVehiclesList.length > 0 ? clientVehiclesList[0] : null);
+
+      if (targetVehicle) {
+        const vId = targetVehicle.id || targetVehicle.vehicle_id || targetVehicle._id;
+        updated.vehicles_fk_id = vId;
+        updated.license_plate = targetVehicle.license_plate || prev.license_plate || '';
+        updated.brand = targetVehicle.brand || prev.brand || '';
+        updated.model = targetVehicle.model || prev.model || '';
+        updated.vehicle_type = targetVehicle.vehicle_type || prev.vehicle_type || '';
+      } else {
+        updated.vehicles_fk_id = '';
+      }
+
+      return updated;
+    });
   };
 
   const handleVehicleSelect = (vehicleId: string) => {
-    const vehicle = vehiculos?.find((v: any) => v.id === vehicleId || v.vehicle_id === vehicleId);
-    setFormData((prev: any) => ({
-      ...prev,
-      vehicles_fk_id: vehicleId,
-      license_plate: vehicle?.license_plate || prev.license_plate || '',
-      brand: vehicle?.brand || prev.brand || '',
-      model: vehicle?.model || prev.model || '',
-      vehicle_type: vehicle?.vehicle_type || prev.vehicle_type || '',
-    }));
+    const vehicle = vehiculos?.find((v: any) => (v.id || v.vehicle_id || v._id) === vehicleId);
+
+    setFormData((prev: any) => {
+      const updated: any = {
+        ...prev,
+        vehicles_fk_id: vehicleId,
+        license_plate: vehicle?.license_plate || prev.license_plate || '',
+        brand: vehicle?.brand || prev.brand || '',
+        model: vehicle?.model || prev.model || '',
+        vehicle_type: vehicle?.vehicle_type || prev.vehicle_type || '',
+      };
+
+      if (vehicle) {
+        const associatedClient = findClientForVehicle(vehicle, clientes || undefined);
+        if (associatedClient) {
+          const cId = associatedClient.id || associatedClient.client_id || associatedClient._id;
+          if (!updated.clients_fk_id || updated.clients_fk_id !== cId) {
+            updated.clients_fk_id = cId;
+            updated.client_name = associatedClient.client_name || updated.client_name;
+            updated.tax_id = associatedClient.tax_id || updated.tax_id;
+          }
+        }
+      }
+
+      return updated;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -118,6 +160,15 @@ export default function NotaEntregaModal({ isOpen, onClose, onSuccess, nota }: N
       setLoading(false);
     }
   };
+
+  const selectedClient = clientes?.find((c: any) => (c.id || c.client_id || c._id) === formData.clients_fk_id);
+  const clientVehicles = selectedClient ? getVehiclesForClient(selectedClient, vehiculos || undefined) : [];
+  const otherVehicles = clientVehicles.length > 0
+    ? (vehiculos || []).filter((v: any) => {
+        const vId = v.id || v.vehicle_id || v._id;
+        return !clientVehicles.some((cv: any) => (cv.id || cv.vehicle_id || cv._id) === vId);
+      })
+    : (vehiculos || []);
 
   return (
     <div 
@@ -172,31 +223,105 @@ export default function NotaEntregaModal({ isOpen, onClose, onSuccess, nota }: N
                 <select
                   value={formData.clients_fk_id || ""}
                   onChange={e => handleClientSelect(e.target.value)}
-                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm"
+                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm bg-white"
                 >
                   <option value="">Seleccionar Cliente...</option>
-                  {clientes?.map((c: any) => (
-                    <option key={c.id || c.client_id} value={c.id || c.client_id}>
-                      {c.client_name} ({c.tax_id})
+                  {formData.clients_fk_id && !clientes?.some((c: any) => (c.id || c.client_id || c._id) === formData.clients_fk_id) && (
+                    <option value={formData.clients_fk_id}>
+                      {formData.client_name || nota?.client_name || 'Cliente actual'} ({formData.tax_id || nota?.tax_id || ''})
                     </option>
-                  ))}
+                  )}
+                  {clientes?.map((c: any) => {
+                    const cId = c.id || c.client_id || c._id;
+                    return (
+                      <option key={cId} value={cId}>
+                        {c.client_name} ({c.tax_id})
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Vehículo *</label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-semibold text-gray-700">Vehículo *</label>
+                  {clientVehicles.length > 1 && (
+                    <span className="text-xs bg-blue-100 text-primary font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <i className="fas fa-layer-group text-[10px]"></i>
+                      {clientVehicles.length} vehículos del cliente
+                    </span>
+                  )}
+                </div>
                 <select
                   value={formData.vehicles_fk_id || ""}
                   onChange={e => handleVehicleSelect(e.target.value)}
-                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm"
+                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm bg-white"
                 >
-                  <option value="">Seleccionar Vehículo...</option>
-                  {vehiculos?.map((v: any) => (
-                    <option key={v.id || v.vehicle_id} value={v.id || v.vehicle_id}>
-                      {v.license_plate} - {v.brand} {v.model}
+                  <option value="">
+                    {clientVehicles.length > 1
+                      ? `Seleccionar Vehículo (${clientVehicles.length} disponibles)...`
+                      : "Seleccionar Vehículo..."}
+                  </option>
+                  {formData.vehicles_fk_id && !vehiculos?.some((v: any) => (v.id || v.vehicle_id || v._id) === formData.vehicles_fk_id) && (
+                    <option value={formData.vehicles_fk_id}>
+                      {formData.license_plate || nota?.license_plate || 'Vehículo actual'} - {formData.brand || nota?.brand || ''} {formData.model || nota?.model || ''}
                     </option>
-                  ))}
+                  )}
+                  {clientVehicles.length > 0 && (
+                    <optgroup label={`Vehículos de ${selectedClient?.client_name || 'este cliente'} (${clientVehicles.length})`}>
+                      {clientVehicles.map((v: any) => {
+                        const vId = v.id || v.vehicle_id || v._id;
+                        return (
+                          <option key={`client-veh-${vId}`} value={vId}>
+                            {v.license_plate} - {v.brand} {v.model}
+                          </option>
+                        );
+                      })}
+                    </optgroup>
+                  )}
+                  <optgroup label={clientVehicles.length > 0 ? "Otros Vehículos" : "Todos los Vehículos"}>
+                    {otherVehicles.map((v: any) => {
+                      const vId = v.id || v.vehicle_id || v._id;
+                      return (
+                        <option key={vId} value={vId}>
+                          {v.license_plate} - {v.brand} {v.model}
+                        </option>
+                      );
+                    })}
+                  </optgroup>
                 </select>
+
+                {/* Acceso rápido si el cliente tiene más de un vehículo */}
+                {clientVehicles.length > 1 && (
+                  <div className="mt-2.5 p-2.5 bg-blue-50/70 rounded-xl border border-blue-200/70">
+                    <p className="text-xs font-semibold text-gray-700 mb-1.5 flex items-center gap-1.5">
+                      <i className="fas fa-car-side text-primary"></i>
+                      Vehículos registrados ({clientVehicles.length}) - Haz clic para cambiar:
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {clientVehicles.map((v: any) => {
+                        const vId = v.id || v.vehicle_id || v._id;
+                        const isSelected = formData.vehicles_fk_id === vId;
+                        return (
+                          <button
+                            key={`quick-veh-${vId}`}
+                            type="button"
+                            onClick={() => handleVehicleSelect(vId)}
+                            className={`px-2.5 py-1 text-xs rounded-lg font-bold border transition-all flex items-center gap-1.5 ${
+                              isSelected
+                                ? "bg-primary text-white border-primary shadow-sm"
+                                : "bg-white text-gray-700 border-gray-200 hover:border-primary hover:text-primary"
+                            }`}
+                          >
+                            {isSelected && <i className="fas fa-check-circle text-[10px]"></i>}
+                            <span className="font-mono">{v.license_plate}</span>
+                            <span className="font-normal opacity-85">({v.brand} {v.model})</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>

@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { createEntity, updateEntity } from "../../api/client";
 import { useGrqlList } from "../../hooks/use-grql";
+import {
+  resolveVehicleId,
+  resolveClientId,
+  findVehicleForClient,
+  getVehiclesForClient,
+  findClientForVehicle
+} from "../../utils/entityHelpers";
 
 interface OrdenModalProps {
   isOpen: boolean;
@@ -17,25 +24,18 @@ export default function OrdenModal({ isOpen, onClose, onSuccess, orden }: OrdenM
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: clientes } = useGrqlList<any[]>("GestionTallerProd_clients");
-  const { data: vehiculos } = useGrqlList<any[]>("GestionTallerProd_vehicles");
+  const { data: clientes } = useGrqlList<any[]>("GestionTallerProd_clients", {
+    pagination: { page: 1, size: 500 }
+  });
+  const { data: vehiculos } = useGrqlList<any[]>("GestionTallerProd_vehicles", {
+    pagination: { page: 1, size: 500 }
+  });
 
   useEffect(() => {
     if (isOpen) {
       if (orden) {
-        let clientId = orden.clients_fk_id;
-        if (Array.isArray(clientId) && clientId.length > 0) {
-          clientId = typeof clientId[0] === 'object' ? (clientId[0].id || clientId[0].client_id) : clientId[0];
-        } else if (!clientId && Array.isArray(orden.clients) && orden.clients.length > 0) {
-          clientId = orden.clients[0]?.id || orden.clients[0]?.client_id;
-        }
-
-        let vehicleId = orden.vehicles_fk_id;
-        if (Array.isArray(vehicleId) && vehicleId.length > 0) {
-          vehicleId = typeof vehicleId[0] === 'object' ? (vehicleId[0].id || vehicleId[0].vehicle_id) : vehicleId[0];
-        } else if (!vehicleId && Array.isArray(orden.vehicles) && orden.vehicles.length > 0) {
-          vehicleId = orden.vehicles[0]?.id || orden.vehicles[0]?.vehicle_id;
-        }
+        const clientId = resolveClientId(orden, clientes || undefined);
+        const vehicleId = resolveVehicleId(orden, vehiculos || undefined);
 
         const rawDate = orden.entry_date || orden.order_date || orden.created_at || '';
         const entryDate = rawDate ? String(rawDate).replace(' ', 'T').split('T')[0] : new Date().toISOString().split('T')[0];
@@ -43,15 +43,15 @@ export default function OrdenModal({ isOpen, onClose, onSuccess, orden }: OrdenM
         const totalCost = orden.total_cost ?? orden.estimated_cost ?? orden.cost ?? 0;
         const description = orden.description || orden.repair_details || orden.notes || '';
 
-        setFormData({
+        setFormData((prev: any) => ({
           ...orden,
-          clients_fk_id: clientId || '',
-          vehicles_fk_id: vehicleId || '',
+          clients_fk_id: clientId || prev.clients_fk_id || '',
+          vehicles_fk_id: vehicleId || prev.vehicles_fk_id || '',
           entry_date: entryDate,
           status: orden.status || 'pendiente',
           total_cost: totalCost,
           description: description
-        });
+        }));
       } else {
         setFormData({
           status: 'pendiente',
@@ -62,12 +62,54 @@ export default function OrdenModal({ isOpen, onClose, onSuccess, orden }: OrdenM
       }
       setError(null);
     }
-  }, [isOpen, orden]);
+  }, [isOpen, orden, clientes, vehiculos]);
 
   if (!isOpen) return null;
 
   const handleFieldChange = (field: string, value: any) => {
     setFormData((prev: any) => ({ ...prev, [field]: value }));
+  };
+
+  const handleClientSelect = (clientId: string) => {
+    const client = clientes?.find((c: any) => (c.id || c.client_id || c._id) === clientId);
+    const clientVehiclesList = getVehiclesForClient(client, vehiculos || undefined);
+
+    setFormData((prev: any) => {
+      const updated = { ...prev, clients_fk_id: clientId };
+      const currentIsOfClient = clientVehiclesList.some(
+        (v: any) => (v.id || v.vehicle_id || v._id) === prev.vehicles_fk_id
+      );
+
+      const targetVehicle = currentIsOfClient
+        ? clientVehiclesList.find((v: any) => (v.id || v.vehicle_id || v._id) === prev.vehicles_fk_id)
+        : (clientVehiclesList.length > 0 ? clientVehiclesList[0] : null);
+
+      if (targetVehicle) {
+        const vId = targetVehicle.id || targetVehicle.vehicle_id || targetVehicle._id;
+        updated.vehicles_fk_id = vId;
+      } else {
+        updated.vehicles_fk_id = '';
+      }
+      return updated;
+    });
+  };
+
+  const handleVehicleSelect = (vehicleId: string) => {
+    const vehicle = vehiculos?.find((v: any) => (v.id || v.vehicle_id || v._id) === vehicleId);
+
+    setFormData((prev: any) => {
+      const updated = { ...prev, vehicles_fk_id: vehicleId };
+      if (vehicle) {
+        const associatedClient = findClientForVehicle(vehicle, clientes || undefined);
+        if (associatedClient) {
+          const cId = associatedClient.id || associatedClient.client_id || associatedClient._id;
+          if (!updated.clients_fk_id || updated.clients_fk_id !== cId) {
+            updated.clients_fk_id = cId;
+          }
+        }
+      }
+      return updated;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -94,6 +136,15 @@ export default function OrdenModal({ isOpen, onClose, onSuccess, orden }: OrdenM
       onClose();
     }
   };
+
+  const selectedClient = clientes?.find((c: any) => (c.id || c.client_id || c._id) === formData.clients_fk_id);
+  const clientVehicles = selectedClient ? getVehiclesForClient(selectedClient, vehiculos || undefined) : [];
+  const otherVehicles = clientVehicles.length > 0
+    ? (vehiculos || []).filter((v: any) => {
+        const vId = v.id || v.vehicle_id || v._id;
+        return !clientVehicles.some((cv: any) => (cv.id || cv.vehicle_id || cv._id) === vId);
+      })
+    : (vehiculos || []);
 
   return (
     <div 
@@ -125,37 +176,113 @@ export default function OrdenModal({ isOpen, onClose, onSuccess, orden }: OrdenM
                 <select
                   required
                   value={formData.clients_fk_id || ""}
-                  onChange={e => handleFieldChange("clients_fk_id", e.target.value)}
+                  onChange={e => handleClientSelect(e.target.value)}
                   className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm bg-white font-medium"
                 >
                   <option value="">Seleccionar cliente...</option>
-                  {clientes?.map((c: any) => (
-                    <option key={c.id || c.client_id} value={c.id || c.client_id}>
-                      {c.client_name} {c.tax_id ? `(${c.tax_id})` : ''}
+                  {formData.clients_fk_id && !clientes?.some((c: any) => (c.id || c.client_id || c._id) === formData.clients_fk_id) && (
+                    <option value={formData.clients_fk_id}>
+                      {orden?.client_name || 'Cliente actual'} {orden?.tax_id ? `(${orden?.tax_id})` : ''}
                     </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Vehículo *</label>
-                <select
-                  required
-                  value={formData.vehicles_fk_id || ""}
-                  onChange={e => handleFieldChange("vehicles_fk_id", e.target.value)}
-                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm bg-white font-medium"
-                >
-                  <option value="">Seleccionar vehículo...</option>
-                  {vehiculos?.map((v: any) => {
-                    const plate = v.license_plate || v.plate;
-                    const desc = `${v.brand || ''} ${v.model || ''}`.trim();
+                  )}
+                  {clientes?.map((c: any) => {
+                    const cId = c.id || c.client_id || c._id;
                     return (
-                      <option key={v.id || v.vehicle_id} value={v.id || v.vehicle_id}>
-                        {plate ? `[${plate}]` : ''} {desc || v.id}
+                      <option key={cId} value={cId}>
+                        {c.client_name} {c.tax_id ? `(${c.tax_id})` : ''}
                       </option>
                     );
                   })}
                 </select>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-semibold text-gray-700">Vehículo *</label>
+                  {clientVehicles.length > 1 && (
+                    <span className="text-xs bg-blue-100 text-primary font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <i className="fas fa-layer-group text-[10px]"></i>
+                      {clientVehicles.length} vehículos del cliente
+                    </span>
+                  )}
+                </div>
+                <select
+                  required
+                  value={formData.vehicles_fk_id || ""}
+                  onChange={e => handleVehicleSelect(e.target.value)}
+                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm bg-white font-medium"
+                >
+                  <option value="">
+                    {clientVehicles.length > 1
+                      ? `Seleccionar vehículo (${clientVehicles.length} disponibles)...`
+                      : "Seleccionar vehículo..."}
+                  </option>
+                  {formData.vehicles_fk_id && !vehiculos?.some((v: any) => (v.id || v.vehicle_id || v._id) === formData.vehicles_fk_id) && (
+                    <option value={formData.vehicles_fk_id}>
+                      {orden?.license_plate || orden?.vehicles?.[0]?.license_plate || 'Vehículo actual'} - {orden?.brand || ''} {orden?.model || ''}
+                    </option>
+                  )}
+                  {clientVehicles.length > 0 && (
+                    <optgroup label={`Vehículos de ${selectedClient?.client_name || 'este cliente'} (${clientVehicles.length})`}>
+                      {clientVehicles.map((v: any) => {
+                        const vId = v.id || v.vehicle_id || v._id;
+                        const plate = v.license_plate || v.plate;
+                        const desc = `${v.brand || ''} ${v.model || ''}`.trim();
+                        return (
+                          <option key={`client-veh-${vId}`} value={vId}>
+                            {plate ? `[${plate}]` : ''} {desc || vId}
+                          </option>
+                        );
+                      })}
+                    </optgroup>
+                  )}
+                  <optgroup label={clientVehicles.length > 0 ? "Otros Vehículos" : "Todos los Vehículos"}>
+                    {otherVehicles.map((v: any) => {
+                      const vId = v.id || v.vehicle_id || v._id;
+                      const plate = v.license_plate || v.plate;
+                      const desc = `${v.brand || ''} ${v.model || ''}`.trim();
+                      return (
+                        <option key={vId} value={vId}>
+                          {plate ? `[${plate}]` : ''} {desc || vId}
+                        </option>
+                      );
+                    })}
+                  </optgroup>
+                </select>
+
+                {/* Acceso rápido si el cliente tiene más de un vehículo */}
+                {clientVehicles.length > 1 && (
+                  <div className="mt-2.5 p-2.5 bg-blue-50/70 rounded-xl border border-blue-200/70">
+                    <p className="text-xs font-semibold text-gray-700 mb-1.5 flex items-center gap-1.5">
+                      <i className="fas fa-car-side text-primary"></i>
+                      Vehículos registrados ({clientVehicles.length}) - Haz clic para cambiar:
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {clientVehicles.map((v: any) => {
+                        const vId = v.id || v.vehicle_id || v._id;
+                        const isSelected = formData.vehicles_fk_id === vId;
+                        const plate = v.license_plate || v.plate;
+                        const desc = `${v.brand || ''} ${v.model || ''}`.trim();
+                        return (
+                          <button
+                            key={`quick-veh-${vId}`}
+                            type="button"
+                            onClick={() => handleVehicleSelect(vId)}
+                            className={`px-2.5 py-1 text-xs rounded-lg font-bold border transition-all flex items-center gap-1.5 ${
+                              isSelected
+                                ? "bg-primary text-white border-primary shadow-sm"
+                                : "bg-white text-gray-700 border-gray-200 hover:border-primary hover:text-primary"
+                            }`}
+                          >
+                            {isSelected && <i className="fas fa-check-circle text-[10px]"></i>}
+                            <span className="font-mono">{plate}</span>
+                            <span className="font-normal opacity-85">({desc})</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>

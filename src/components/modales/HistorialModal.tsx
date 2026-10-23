@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { createEntity, updateEntity } from "../../api/client";
 import { useGrqlList } from "../../hooks/use-grql";
+import { resolveVehicleId, resolveEmployeeId } from "../../utils/entityHelpers";
 
 interface HistorialModalProps {
   isOpen: boolean;
@@ -18,37 +19,30 @@ export default function HistorialModal({ isOpen, onClose, onSuccess, historial }
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: vehiculos } = useGrqlList<any[]>("GestionTallerProd_vehicles");
-  const { data: empleados } = useGrqlList<any[]>("GestionTallerProd_employees");
+  const { data: vehiculos } = useGrqlList<any[]>("GestionTallerProd_vehicles", {
+    pagination: { page: 1, size: 500 }
+  });
+  const { data: empleados } = useGrqlList<any[]>("GestionTallerProd_employees", {
+    pagination: { page: 1, size: 200 }
+  });
 
   useEffect(() => {
     if (isOpen) {
       if (historial) {
-        let vehicleId = historial.vehicles_fk_id;
-        if (Array.isArray(vehicleId) && vehicleId.length > 0) {
-          vehicleId = typeof vehicleId[0] === 'object' ? (vehicleId[0].id || vehicleId[0].vehicle_id) : vehicleId[0];
-        } else if (!vehicleId && Array.isArray(historial.vehicles) && historial.vehicles.length > 0) {
-          vehicleId = historial.vehicles[0]?.id || historial.vehicles[0]?.vehicle_id;
-        }
-
-        let employeeId = historial.employees_fk_id;
-        if (Array.isArray(employeeId) && employeeId.length > 0) {
-          employeeId = typeof employeeId[0] === 'object' ? (employeeId[0].id || employeeId[0].employee_id) : employeeId[0];
-        } else if (!employeeId && Array.isArray(historial.employees) && historial.employees.length > 0) {
-          employeeId = historial.employees[0]?.id || historial.employees[0]?.employee_id;
-        }
+        const vehicleId = resolveVehicleId(historial, vehiculos || undefined);
+        const employeeId = resolveEmployeeId(historial, empleados || undefined);
 
         const rawDate = historial.service_date || historial.created_at || '';
         const serviceDate = rawDate ? String(rawDate).replace(' ', 'T').split('T')[0] : new Date().toISOString().split('T')[0];
 
-        setFormData({
+        setFormData((prev: any) => ({
           ...historial,
-          vehicles_fk_id: vehicleId || '',
-          employees_fk_id: employeeId || '',
+          vehicles_fk_id: vehicleId || prev.vehicles_fk_id || '',
+          employees_fk_id: employeeId || prev.employees_fk_id || '',
           service_date: serviceDate,
           total_cost: Number(historial.total_cost || 0),
           time_in_shop: historial.time_in_shop || '1 día'
-        });
+        }));
       } else {
         setFormData({
           service_date: new Date().toISOString().split('T')[0],
@@ -58,7 +52,7 @@ export default function HistorialModal({ isOpen, onClose, onSuccess, historial }
       }
       setError(null);
     }
-  }, [isOpen, historial]);
+  }, [isOpen, historial, vehiculos, empleados]);
 
   if (!isOpen) return null;
 
@@ -67,7 +61,7 @@ export default function HistorialModal({ isOpen, onClose, onSuccess, historial }
   };
 
   const handleMechanicSelect = (employeeId: string) => {
-    const emp = empleados?.find((e: any) => e.id === employeeId || e.employee_id === employeeId);
+    const emp = empleados?.find((e: any) => (e.id || e.employee_id || e._id) === employeeId);
     setFormData((prev: any) => ({
       ...prev,
       employees_fk_id: employeeId,
@@ -80,8 +74,11 @@ export default function HistorialModal({ isOpen, onClose, onSuccess, historial }
     setLoading(true);
     setError(null);
     try {
+      const selectedVeh = vehiculos?.find((v: any) => (v.id || v.vehicle_id || v._id) === formData.vehicles_fk_id);
       const payload = {
         ...formData,
+        vehicles_fk_id: formData.vehicles_fk_id,
+        license_plate: selectedVeh?.license_plate || formData.license_plate || '',
         total_cost: parseFloat(formData.total_cost || 0),
       };
 
@@ -130,14 +127,22 @@ export default function HistorialModal({ isOpen, onClose, onSuccess, historial }
                   required
                   value={formData.vehicles_fk_id || ""}
                   onChange={e => handleFieldChange("vehicles_fk_id", e.target.value)}
-                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm"
+                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm bg-white"
                 >
                   <option value="">Seleccionar Vehículo...</option>
-                  {vehiculos?.map((v: any) => (
-                    <option key={v.id || v.vehicle_id} value={v.id || v.vehicle_id}>
-                      {v.license_plate} - {v.brand} {v.model}
+                  {formData.vehicles_fk_id && !vehiculos?.some((v: any) => (v.id || v.vehicle_id || v._id) === formData.vehicles_fk_id) && (
+                    <option value={formData.vehicles_fk_id}>
+                      {historial?.license_plate || historial?.vehicles?.[0]?.license_plate || 'Vehículo actual'} - {historial?.brand || historial?.vehicles?.[0]?.brand || ''} {historial?.model || historial?.vehicles?.[0]?.model || ''}
                     </option>
-                  ))}
+                  )}
+                  {vehiculos?.map((v: any) => {
+                    const vId = v.id || v.vehicle_id || v._id;
+                    return (
+                      <option key={vId} value={vId}>
+                        {v.license_plate} - {v.brand} {v.model}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
@@ -157,14 +162,22 @@ export default function HistorialModal({ isOpen, onClose, onSuccess, historial }
                 <select
                   value={formData.employees_fk_id || ""}
                   onChange={e => handleMechanicSelect(e.target.value)}
-                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm"
+                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm bg-white"
                 >
                   <option value="">Seleccionar Mecánico...</option>
-                  {empleados?.map((emp: any) => (
-                    <option key={emp.id || emp.employee_id} value={emp.id || emp.employee_id}>
-                      {emp.employee_name} ({emp.position || 'Mecánico'})
+                  {formData.employees_fk_id && !empleados?.some((emp: any) => (emp.id || emp.employee_id || emp._id) === formData.employees_fk_id) && (
+                    <option value={formData.employees_fk_id}>
+                      {historial?.assigned_mechanic || historial?.employees?.[0]?.employee_name || 'Mecánico actual'}
                     </option>
-                  ))}
+                  )}
+                  {empleados?.map((emp: any) => {
+                    const empId = emp.id || emp.employee_id || emp._id;
+                    return (
+                      <option key={empId} value={empId}>
+                        {emp.employee_name} ({emp.position || 'Mecánico'})
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 

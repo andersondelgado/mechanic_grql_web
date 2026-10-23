@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { createEntity, updateEntity } from "../../api/client";
 import { useGrqlList } from "../../hooks/use-grql";
+import { resolveVehicleId } from "../../utils/entityHelpers";
 
 interface TarjetaRevisionModalProps {
   isOpen: boolean;
@@ -21,30 +22,27 @@ export default function TarjetaRevisionModal({ isOpen, onClose, onSuccess, tarje
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: vehiculos } = useGrqlList<any[]>("GestionTallerProd_vehicles");
+  const { data: vehiculos } = useGrqlList<any[]>("GestionTallerProd_vehicles", {
+    pagination: { page: 1, size: 500 }
+  });
 
   useEffect(() => {
     if (isOpen) {
       if (tarjeta) {
-        let vehicleId = tarjeta.vehicles_fk_id;
-        if (Array.isArray(vehicleId) && vehicleId.length > 0) {
-          vehicleId = typeof vehicleId[0] === 'object' ? (vehicleId[0].id || vehicleId[0].vehicle_id) : vehicleId[0];
-        } else if (!vehicleId && Array.isArray(tarjeta.vehicles) && tarjeta.vehicles.length > 0) {
-          vehicleId = tarjeta.vehicles[0]?.id || tarjeta.vehicles[0]?.vehicle_id;
-        }
+        const vehicleId = resolveVehicleId(tarjeta, vehiculos || undefined);
 
         const rawDate = tarjeta.inspection_date || tarjeta.created_at || '';
         const inspectionDate = rawDate ? String(rawDate).replace(' ', 'T').split('T')[0] : new Date().toISOString().split('T')[0];
 
-        setFormData({
+        setFormData((prev: any) => ({
           ...tarjeta,
-          vehicles_fk_id: vehicleId || '',
+          vehicles_fk_id: vehicleId || prev.vehicles_fk_id || '',
           inspection_date: inspectionDate,
           check_yes: Boolean(tarjeta.check_yes),
           check_no: Boolean(tarjeta.check_no),
           item_name: tarjeta.item_name || '',
           observations: tarjeta.observations || ''
-        });
+        }));
       } else {
         setFormData({
           inspection_type: 'REVISION EXTERNA',
@@ -57,7 +55,7 @@ export default function TarjetaRevisionModal({ isOpen, onClose, onSuccess, tarje
       }
       setError(null);
     }
-  }, [isOpen, tarjeta]);
+  }, [isOpen, tarjeta, vehiculos]);
 
   if (!isOpen) return null;
 
@@ -132,6 +130,11 @@ export default function TarjetaRevisionModal({ isOpen, onClose, onSuccess, tarje
                   className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm"
                 >
                   <option value="">Seleccionar Vehículo...</option>
+                  {formData.vehicles_fk_id && !vehiculos?.some((v: any) => (v.id || v.vehicle_id || v._id) === formData.vehicles_fk_id) && (
+                    <option value={formData.vehicles_fk_id}>
+                      {tarjeta?.license_plate || tarjeta?.vehicles?.[0]?.license_plate || 'Vehículo actual'} - {tarjeta?.brand || tarjeta?.vehicles?.[0]?.brand || ''} {tarjeta?.model || tarjeta?.vehicles?.[0]?.model || ''}
+                    </option>
+                  )}
                   {vehiculos?.map((v: any) => (
                     <option key={v.id || v.vehicle_id} value={v.id || v.vehicle_id}>
                       {v.license_plate} - {v.brand} {v.model}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { createEntity, updateEntity } from "../../api/client";
 import { useGrqlList } from "../../hooks/use-grql";
+import { resolveVehicleId } from "../../utils/entityHelpers";
 
 interface RecepcionModalProps {
   isOpen: boolean;
@@ -17,7 +18,9 @@ export default function RecepcionModal({ isOpen, onClose, onSuccess, recepcion }
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: vehiculos } = useGrqlList<any[]>("GestionTallerProd_vehicles");
+  const { data: vehiculos } = useGrqlList<any[]>("GestionTallerProd_vehicles", {
+    pagination: { page: 1, size: 500 }
+  });
 
   useEffect(() => {
     if (isOpen) {
@@ -25,12 +28,7 @@ export default function RecepcionModal({ isOpen, onClose, onSuccess, recepcion }
         const vehicle = recepcion.vehicles?.[0];
         const client = recepcion.clients?.[0] || vehicle?.clients?.[0];
 
-        let vehicleId = recepcion.vehicles_fk_id;
-        if (Array.isArray(vehicleId) && vehicleId.length > 0) {
-          vehicleId = typeof vehicleId[0] === 'object' ? (vehicleId[0].id || vehicleId[0].vehicle_id) : vehicleId[0];
-        } else if (!vehicleId) {
-          vehicleId = vehicle?.id || vehicle?.vehicle_id || '';
-        }
+        const vehicleId = resolveVehicleId(recepcion, vehiculos || undefined);
 
         const rawDate = recepcion.entry_date || recepcion.reception_date || recepcion.receipt_date || recepcion.created_at || '';
         const entryDate = rawDate ? String(rawDate).replace(' ', 'T').split('T')[0] : new Date().toISOString().split('T')[0];
@@ -41,16 +39,16 @@ export default function RecepcionModal({ isOpen, onClose, onSuccess, recepcion }
         const status = recepcion.status || 'proceso';
         const observations = recepcion.observations || recepcion.reason_for_entry || recepcion.pending_issues || recepcion.work_performed || '';
 
-        setFormData({
+        setFormData((prev: any) => ({
           ...recepcion,
-          vehicles_fk_id: vehicleId || '',
+          vehicles_fk_id: vehicleId || prev.vehicles_fk_id || '',
           entry_date: entryDate,
           owner_name: ownerName,
           owner_phone: ownerPhone,
           fuel_level: fuelLevel,
           status: status,
           observations: observations
-        });
+        }));
       } else {
         setFormData({
           status: 'proceso',
@@ -63,7 +61,7 @@ export default function RecepcionModal({ isOpen, onClose, onSuccess, recepcion }
       }
       setError(null);
     }
-  }, [isOpen, recepcion]);
+  }, [isOpen, recepcion, vehiculos]);
 
   if (!isOpen) return null;
 
@@ -145,6 +143,11 @@ export default function RecepcionModal({ isOpen, onClose, onSuccess, recepcion }
                   className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm bg-white font-medium"
                 >
                   <option value="">Seleccionar vehículo...</option>
+                  {formData.vehicles_fk_id && !vehiculos?.some((v: any) => (v.id || v.vehicle_id || v._id) === formData.vehicles_fk_id) && (
+                    <option value={formData.vehicles_fk_id}>
+                      {recepcion?.license_plate || recepcion?.vehicles?.[0]?.license_plate || 'Vehículo actual'} - {recepcion?.brand || recepcion?.vehicles?.[0]?.brand || ''} {recepcion?.model || recepcion?.vehicles?.[0]?.model || ''}
+                    </option>
+                  )}
                   {vehiculos?.map((v: any) => {
                     const plate = v.license_plate || v.plate;
                     const desc = `${v.brand || ''} ${v.model || ''}`.trim();
