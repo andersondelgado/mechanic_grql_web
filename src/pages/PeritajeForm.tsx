@@ -1,13 +1,15 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { usePeritaje, usePeritajeVideos } from "../hooks/use-peritajes";
-import { createEntity, uploadVideo, analyzeVideo, callLambda, getEntity } from "../api/client";
+import { createEntity, updateEntity, uploadVideo, analyzeVideo, callLambda, getEntity } from "../api/client";
 import { GeminiAiService } from "../services/gemini-ai.service";
 import { InspectionService } from "../services/inspection.service";
 import { SelectedMediaFile, createSelectedMediaFile, formatBytes } from "../utils/base64";
 import Autocomplete from "../components/ui/Autocomplete";
 import { InspectionCard, InspectionAnalysis } from "../types/entities";
 import { useGrqlList } from "../hooks/use-grql";
+import { useVehiculos, useClientes } from "../hooks/use-clientes";
+import { findClientForVehicle, getVehiclesForClient } from "../utils/entityHelpers";
 
 export default function PeritajeForm() {
   const { id } = useParams<{ id: string }>();
@@ -44,10 +46,39 @@ export default function PeritajeForm() {
 
   const { data: videos } = usePeritajeVideos();
   const { data: analysisList } = useGrqlList<any[]>("GestionTallerProd_inspection_analysis");
+  const { data: vehiculos } = useGrqlList<any[]>("GestionTallerProd_vehicles", { pagination: { page: 1, size: 500 } });
+  const { data: clientes } = useGrqlList<any[]>("GestionTallerProd_clients", { pagination: { page: 1, size: 500 } });
+
+  const [selectedClientObj, setSelectedClientObj] = useState<any>(null);
+  const [selectedVehicleObj, setSelectedVehicleObj] = useState<any>(null);
 
   useEffect(() => {
     if (peritaje) {
-      setFormData(peritaje);
+      setFormData((prev: any) => {
+        const updated = { ...prev, ...peritaje };
+
+        // Si el peritaje ya tiene vehículo pero no cliente, resolverlo de inmediato
+        const currentVehId = updated.vehicles_fk_id;
+        if (currentVehId && !updated.clients_fk_id && vehiculos && vehiculos.length > 0) {
+          const matchedVeh = vehiculos.find(
+            (v: any) => (v.id || v.vehicle_id || v._id) === currentVehId
+          );
+          if (matchedVeh) {
+            setSelectedVehicleObj(matchedVeh);
+            const directClient = matchedVeh.clients?.[0];
+            const associatedClient = findClientForVehicle(matchedVeh, clientes || undefined) || directClient;
+            const resolvedClientId = associatedClient
+              ? (associatedClient.id || associatedClient.client_id || associatedClient._id)
+              : (matchedVeh.clients_fk_id || "");
+            if (resolvedClientId) {
+              updated.clients_fk_id = resolvedClientId;
+              setSelectedClientObj(associatedClient || directClient || null);
+            }
+          }
+        }
+        return updated;
+      });
+
       // Look for already uploaded video and analysis
       if (videos) {
         const match = videos.find((v: any) => v.inspection_cards_fk_id === peritaje.id);
@@ -63,10 +94,85 @@ export default function PeritajeForm() {
         }
       }
     }
-  }, [peritaje, videos, analysisList]);
+  }, [peritaje, videos, analysisList, vehiculos, clientes]);
+
+  // Si los vehículos o clientes cargan después del peritaje, auto-resolver el cliente del vehículo
+  useEffect(() => {
+    if (formData.vehicles_fk_id && !formData.clients_fk_id && vehiculos && vehiculos.length > 0) {
+      const matchedVeh = vehiculos.find(
+        (v: any) => (v.id || v.vehicle_id || v._id) === formData.vehicles_fk_id
+      );
+      if (matchedVeh) {
+        setSelectedVehicleObj(matchedVeh);
+        const directClient = matchedVeh.clients?.[0];
+        const associatedClient = findClientForVehicle(matchedVeh, clientes || undefined) || directClient;
+        const resolvedClientId = associatedClient
+          ? (associatedClient.id || associatedClient.client_id || associatedClient._id)
+          : (matchedVeh.clients_fk_id || "");
+        if (resolvedClientId) {
+          setSelectedClientObj(associatedClient || directClient || null);
+          setFormData((prev: any) => ({ ...prev, clients_fk_id: resolvedClientId }));
+        }
+      }
+    }
+  }, [formData.vehicles_fk_id, formData.clients_fk_id, vehiculos, clientes]);
 
   const handleFieldChange = (field: string, value: any) => {
     setFormData((prev: any) => ({ ...prev, [field]: value }));
+  };
+
+  const handleVehicleSelect = (vehicleId: string, vehicleItem?: any) => {
+    const selectedVeh = vehicleItem || vehiculos?.find((v: any) =>
+      (v.id || v.vehicle_id || v._id) === vehicleId
+    );
+    setSelectedVehicleObj(selectedVeh || null);
+
+    setFormData((prev: any) => {
+      const updated = { ...prev, vehicles_fk_id: vehicleId };
+
+      if (selectedVeh) {
+        const directClient = selectedVeh.clients?.[0];
+        const associatedClient = findClientForVehicle(selectedVeh, clientes || undefined) || directClient;
+        const resolvedClientId = associatedClient
+          ? (associatedClient.id || associatedClient.client_id || associatedClient._id)
+          : (selectedVeh.clients_fk_id || "");
+
+        if (resolvedClientId) {
+          updated.clients_fk_id = resolvedClientId;
+          setSelectedClientObj(associatedClient || directClient || null);
+        }
+      } else {
+        setSelectedClientObj(null);
+      }
+      return updated;
+    });
+  };
+
+  const handleClientSelect = (clientId: string, clientItem?: any) => {
+    const selectedClient = clientItem || clientes?.find((c: any) =>
+      (c.id || c.client_id || c._id) === clientId
+    );
+    setSelectedClientObj(selectedClient || null);
+
+    setFormData((prev: any) => {
+      const updated = { ...prev, clients_fk_id: clientId };
+      if (clientId && (clientes || selectedClient) && vehiculos) {
+        const client = selectedClient || clientes?.find((c: any) => (c.id || c.client_id || c._id) === clientId);
+        const clientVehicles = getVehiclesForClient(client, vehiculos, clientes || undefined);
+        const currentBelongsToClient = clientVehicles.some(
+          (v: any) => (v.id || v.vehicle_id || v._id) === prev.vehicles_fk_id
+        );
+        if (!currentBelongsToClient && clientVehicles.length > 0) {
+          const firstVeh = clientVehicles[0];
+          const firstVehId = firstVeh.id || firstVeh.vehicle_id || firstVeh._id;
+          if (firstVehId) {
+            updated.vehicles_fk_id = firstVehId;
+            setSelectedVehicleObj(firstVeh);
+          }
+        }
+      }
+      return updated;
+    });
   };
 
   const startRecording = async () => {
@@ -243,12 +349,7 @@ export default function PeritajeForm() {
     setError(null);
     try {
       if (isEdit) {
-        await callLambda({
-          table: "GestionTallerProd_inspection_cards",
-          method: "UPDATE",
-          id: id,
-          data: formData,
-        });
+        await updateEntity("GestionTallerProd_inspection_cards", id!, formData);
       } else {
         const result = await createEntity("GestionTallerProd_inspection_cards", formData);
         setFormData(result as any);
@@ -357,8 +458,11 @@ export default function PeritajeForm() {
                 label="ID Vehículo *"
                 placeholder="Buscar por placa o marca..."
                 value={formData.vehicles_fk_id || ""}
-                onChange={(val) => handleFieldChange("vehicles_fk_id", val)}
-                fetchData={() => getEntity("GestionTallerProd_vehicles")}
+                onChange={(val) => handleVehicleSelect(val)}
+                onSelectItem={(item) => handleVehicleSelect(item?.id || item?.vehicle_id || "", item)}
+                data={vehiculos || undefined}
+                selectedItemFallback={selectedVehicleObj}
+                fetchData={() => getEntity("GestionTallerProd_vehicles", { pagination: { page: 1, size: 500 } })}
                 displayField={(item) => `${item.license_plate} - ${item.brand} ${item.model || ''}`}
                 searchFields={['license_plate', 'brand', 'model', 'id']}
               />
@@ -368,8 +472,11 @@ export default function PeritajeForm() {
                 label="ID Cliente *"
                 placeholder="Buscar por nombre o documento..."
                 value={formData.clients_fk_id || ""}
-                onChange={(val) => handleFieldChange("clients_fk_id", val)}
-                fetchData={() => getEntity("GestionTallerProd_clients")}
+                onChange={(val) => handleClientSelect(val)}
+                onSelectItem={(item) => handleClientSelect(item?.id || item?.client_id || "", item)}
+                data={clientes || undefined}
+                selectedItemFallback={selectedClientObj}
+                fetchData={() => getEntity("GestionTallerProd_clients", { pagination: { page: 1, size: 500 } })}
                 displayField={(item) => `${item.client_name} - ${item.tax_id || ''}`}
                 searchFields={['client_name', 'tax_id', 'id']}
               />

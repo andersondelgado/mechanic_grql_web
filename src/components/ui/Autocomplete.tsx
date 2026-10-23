@@ -4,7 +4,10 @@ import { Search, ChevronDown, X } from 'lucide-react';
 interface AutocompleteProps {
   value: string;
   onChange: (value: string) => void;
-  fetchData: () => Promise<any[]>;
+  onSelectItem?: (item: any | null) => void;
+  fetchData?: () => Promise<any[]>;
+  data?: any[];
+  selectedItemFallback?: any;
   displayField: string | ((item: any) => string);
   searchFields: string[];
   placeholder?: string;
@@ -15,25 +18,36 @@ interface AutocompleteProps {
 export default function Autocomplete({
   value,
   onChange,
+  onSelectItem,
   fetchData,
+  data,
+  selectedItemFallback,
   displayField,
   searchFields,
   placeholder = "Buscar...",
   label,
   idField = "id"
 }: AutocompleteProps) {
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<any[]>(data || []);
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (Array.isArray(data) && data.length > 0) {
+      setItems(data);
+      return;
+    }
+    if (!fetchData) {
+      if (Array.isArray(data)) setItems(data);
+      return;
+    }
     const loadData = async () => {
       setLoading(true);
       try {
-        const data = await fetchData();
-        setItems(data || []);
+        const res = await fetchData();
+        setItems(res || []);
       } catch (err) {
         console.error("Error fetching data for autocomplete:", err);
       } finally {
@@ -41,7 +55,7 @@ export default function Autocomplete({
       }
     };
     loadData();
-  }, [fetchData]);
+  }, [data, fetchData]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -53,7 +67,18 @@ export default function Autocomplete({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const selectedItem = useMemo(() => items.find((i) => i[idField] === value), [items, value, idField]);
+  const getItemId = (item: any) =>
+    item ? (item[idField] || item.id || item.vehicle_id || item.client_id || item._id || "") : "";
+
+  const selectedItem = useMemo(() => {
+    if (!value) return null;
+    const found = items.find((i) => getItemId(i) === value || String(i[idField]) === String(value));
+    if (found) return found;
+    if (selectedItemFallback && (getItemId(selectedItemFallback) === value || String(selectedItemFallback[idField]) === String(value))) {
+      return selectedItemFallback;
+    }
+    return null;
+  }, [items, value, idField, selectedItemFallback]);
 
   const filteredItems = useMemo(() => {
     if (!searchTerm) return items;
@@ -92,6 +117,7 @@ export default function Autocomplete({
             onClick={(e) => {
               e.stopPropagation();
               onChange("");
+              onSelectItem?.(null);
               setSearchTerm("");
             }}
           >
@@ -121,19 +147,24 @@ export default function Autocomplete({
             ) : filteredItems.length === 0 ? (
               <div className="p-4 text-center text-sm text-gray-400">No se encontraron resultados</div>
             ) : (
-              filteredItems.map((item) => (
-                <div
-                  key={item[idField]}
-                  className={`px-3 py-2.5 rounded-lg text-sm cursor-pointer transition ${value === item[idField] ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-gray-50 text-gray-700'}`}
-                  onClick={() => {
-                    onChange(item[idField]);
-                    setIsOpen(false);
-                    setSearchTerm("");
-                  }}
-                >
-                  {getLabel(item)}
-                </div>
-              ))
+              filteredItems.map((item) => {
+                const itemId = getItemId(item);
+                const isSelected = value === itemId || String(item[idField]) === String(value);
+                return (
+                  <div
+                    key={itemId || Math.random().toString()}
+                    className={`px-3 py-2.5 rounded-lg text-sm cursor-pointer transition ${isSelected ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-gray-50 text-gray-700'}`}
+                    onClick={() => {
+                      onChange(itemId);
+                      onSelectItem?.(item);
+                      setIsOpen(false);
+                      setSearchTerm("");
+                    }}
+                  >
+                    {getLabel(item)}
+                  </div>
+                );
+              })
             )}
           </div>
         </div>
