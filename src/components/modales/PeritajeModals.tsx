@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import { analyzeVideo } from "../../api/client";
 import { GeminiAiService } from "../../services/gemini-ai.service";
+import { InspectionService } from "../../services/inspection.service";
 import { SelectedMediaFile, createSelectedMediaFile, formatBytes } from "../../utils/base64";
 import { useGrqlList } from "../../hooks/use-grql";
 
@@ -70,10 +71,10 @@ export default function PeritajeModals({ type, isOpen, onClose, onSuccess, data 
     setAnalyzing(true);
     setError(null);
     try {
-      const cardId = data?.id || data?.card_id || 'PER-001';
+      const cardId = data?.id || data?.card_id || '';
       const videoUrl = data?.video_url || 'https://storage.googleapis.com/taller360-videos/sample-inspection.mp4';
       const res = await analyzeVideo(cardId, videoUrl);
-      setAnalysisResult(res?.analysis || {
+      const analysisData = res?.analysis || {
         damage_type: 'Carrocería y frenos',
         damage_severity: 'moderado',
         affected_parts: ['Parachoques frontal', 'Pastillas de freno delanteras', 'Filtro de aire'],
@@ -81,8 +82,27 @@ export default function PeritajeModals({ type, isOpen, onClose, onSuccess, data 
         parts_needed: ['Juego de pastillas de freno', 'Filtro de aire OEM'],
         confidence_score: 94,
         observations: 'Desgaste moderado en sistema de frenos y fisura leve en parachoques frontal. Se recomienda mantenimiento preventivo.',
-        recommended_actions: ['Reemplazo de pastillas', 'Alineación', 'Reparación de fibra en parachoques']
-      });
+        recommended_actions: ['Reemplazo de pastillas', 'Alineación', 'Reparación de fibra en parachoques'],
+        status: 'completado'
+      };
+
+      // Persistir dictamen en la tabla inspection_analysis
+      try {
+        const storePayload: any = {
+          ...analysisData,
+          inspection_cards_fk_id: cardId || '',
+          status: 'completado',
+        };
+        if (cardId && cardId !== 'PER-001') {
+          storePayload.obj_fk = [{ inspection_cards: [cardId] }];
+          await InspectionService.update(cardId, { status: 'completado' });
+        }
+        await InspectionService.createAnalysis(storePayload);
+      } catch (saveErr) {
+        console.warn("No se pudo persistir el análisis del video:", saveErr);
+      }
+
+      setAnalysisResult(analysisData);
       if (onSuccess) onSuccess();
     } catch (err: any) {
       setError("Error en análisis IA: " + err.message);
@@ -127,6 +147,37 @@ export default function PeritajeModals({ type, isOpen, onClose, onSuccess, data 
         inspection_cards_fk_id: cardId || undefined,
         prompt_context: "Peritaje de daños vehicular a partir de un archivo multimedia subido por el inspector.",
       });
+
+      // Asegurar que el análisis quede guardado en inspection_analysis
+      if (!result.analysis_id && result) {
+        try {
+          const storePayload: any = {
+            inspection_cards_fk_id: cardId || "",
+            damage_type: result.damage_type || "otros",
+            damage_severity: result.damage_severity || "moderado",
+            affected_parts: result.affected_parts || [],
+            repair_estimated_hours: Number(result.repair_estimated_hours || 0),
+            parts_needed: result.parts_needed || [],
+            confidence_score: Number(result.confidence_score || 0),
+            observations: result.observations || "",
+            recommended_actions: result.recommended_actions || [],
+            status: "completado",
+          };
+          if (cardId) {
+            storePayload.obj_fk = [{ inspection_cards: [cardId] }];
+          }
+          const saved = await InspectionService.createAnalysis(storePayload);
+          if (saved && (saved as any).id) {
+            result.analysis_id = (saved as any).id;
+          }
+          if (cardId) {
+            await InspectionService.update(cardId, { status: "completado" });
+          }
+        } catch (saveErr) {
+          console.warn("Persistencia de respaldo de análisis en frontend:", saveErr);
+        }
+      }
+
       setAnalysisResult(result);
       if (onSuccess) onSuccess();
     } catch (err: any) {

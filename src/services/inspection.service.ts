@@ -23,6 +23,8 @@ export const InspectionService = {
 
   // ── Analysis (IA) ─────────────────────────────────────────────────────────
   getAnalyses: (query?: WorkflowQuery) => getEntity<InspectionAnalysis>(TABLE_ANALYSIS, query),
+  createAnalysis: (data: Partial<InspectionAnalysis>) =>
+    createEntity<InspectionAnalysis>(TABLE_ANALYSIS, data as Record<string, unknown>),
   analyzeVideo: (inspectionCardId: string, videoUrl: string) =>
     analyzeVideoApi(inspectionCardId, videoUrl),
 };

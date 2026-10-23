@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { usePeritaje, usePeritajeVideos } from "../hooks/use-peritajes";
 import { createEntity, uploadVideo, analyzeVideo, callLambda, getEntity } from "../api/client";
 import { GeminiAiService } from "../services/gemini-ai.service";
+import { InspectionService } from "../services/inspection.service";
 import { SelectedMediaFile, createSelectedMediaFile, formatBytes } from "../utils/base64";
 import Autocomplete from "../components/ui/Autocomplete";
 import { InspectionCard, InspectionAnalysis } from "../types/entities";
@@ -196,6 +197,32 @@ export default function PeritajeForm() {
         },
         observations: formData.observations || undefined,
       });
+
+      // Asegurar que quede guardado en inspection_analysis
+      if (!result.analysis_id && formData.id) {
+        try {
+          const storePayload: any = {
+            inspection_cards_fk_id: formData.id,
+            damage_type: result.damage_type || "otros",
+            damage_severity: result.damage_severity || "moderado",
+            affected_parts: result.affected_parts || [],
+            repair_estimated_hours: Number(result.repair_estimated_hours || 0),
+            parts_needed: result.parts_needed || [],
+            confidence_score: Number(result.confidence_score || 0),
+            observations: result.observations || "",
+            recommended_actions: result.recommended_actions || [],
+            status: "completado",
+            obj_fk: [{ inspection_cards: [formData.id] }],
+          };
+          const saved = await InspectionService.createAnalysis(storePayload);
+          if (saved && (saved as any).id) {
+            result.analysis_id = (saved as any).id;
+          }
+          await InspectionService.update(formData.id, { status: "completado" });
+        } catch (saveErr) {
+          console.warn("Persistencia de respaldo de análisis en formulario:", saveErr);
+        }
+      }
 
       setAnalysisResult(result as unknown as InspectionAnalysis);
       setActiveTab("analysis");
