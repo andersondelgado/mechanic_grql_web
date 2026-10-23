@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { createEntity, updateEntity } from "../../api/client";
 import { useGrqlList } from "../../hooks/use-grql";
+import { resolveEmployeeId } from "../../utils/entityHelpers";
 
 interface ComunicacionModalProps {
   isOpen: boolean;
@@ -19,12 +20,21 @@ export default function ComunicacionModal({ isOpen, onClose, onSuccess, comunica
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: empleados } = useGrqlList<any[]>("GestionTallerProd_employees");
+  const { data: empleados } = useGrqlList<any[]>("GestionTallerProd_employees", {
+    pagination: { page: 1, size: 200 }
+  });
 
   useEffect(() => {
     if (isOpen) {
       if (comunicacion) {
-        setFormData(comunicacion);
+        const empId = resolveEmployeeId(comunicacion, empleados || undefined);
+        const rawDate = comunicacion.communication_date || comunicacion.created_at || '';
+        const commDate = rawDate ? String(rawDate).replace(' ', 'T').split('T')[0] : new Date().toISOString().split('T')[0];
+        setFormData((prev: any) => ({
+          ...comunicacion,
+          employees_fk_id: empId || prev.employees_fk_id || '',
+          communication_date: commDate
+        }));
       } else {
         setFormData({
           communication_date: new Date().toISOString().split('T')[0],
@@ -35,7 +45,7 @@ export default function ComunicacionModal({ isOpen, onClose, onSuccess, comunica
       }
       setError(null);
     }
-  }, [isOpen, comunicacion]);
+  }, [isOpen, comunicacion, empleados]);
 
   if (!isOpen) return null;
 
@@ -95,6 +105,11 @@ export default function ComunicacionModal({ isOpen, onClose, onSuccess, comunica
                   className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm"
                 >
                   <option value="">Todos los Empleados (General)</option>
+                  {formData.employees_fk_id && !empleados?.some((emp: any) => (emp.id || emp.employee_id) === formData.employees_fk_id) && (
+                    <option value={formData.employees_fk_id}>
+                      {comunicacion?.employees?.[0]?.employee_name || comunicacion?.employee_name || "Empleado Asignado"}
+                    </option>
+                  )}
                   {empleados?.map((emp: any) => (
                     <option key={emp.id || emp.employee_id} value={emp.id || emp.employee_id}>
                       {emp.employee_name}

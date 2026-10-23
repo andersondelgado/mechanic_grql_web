@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { createEntity, updateEntity } from "../../api/client";
 import { useGrqlList } from "../../hooks/use-grql";
+import { resolveClientId } from "../../utils/entityHelpers";
 
 interface CuentaCobrarModalProps {
   isOpen: boolean;
@@ -12,6 +13,7 @@ interface CuentaCobrarModalProps {
 export default function CuentaCobrarModal({ isOpen, onClose, onSuccess, item }: CuentaCobrarModalProps) {
   const [formData, setFormData] = useState<any>({
     transaction_date: new Date().toISOString().split('T')[0],
+    payment_date: '',
     debit: 0,
     credit: 0,
     balance: 0
@@ -19,23 +21,64 @@ export default function CuentaCobrarModal({ isOpen, onClose, onSuccess, item }: 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: clientes } = useGrqlList<any[]>("GestionTallerProd_clients");
+  const { data: clientes } = useGrqlList<any[]>("GestionTallerProd_clients", {
+    pagination: { page: 1, size: 500 }
+  });
+  const { data: vehiculos } = useGrqlList<any[]>("GestionTallerProd_vehicles", {
+    pagination: { page: 1, size: 500 }
+  });
 
   useEffect(() => {
     if (isOpen) {
       if (item) {
-        setFormData(item);
+        let clientId = resolveClientId(item, clientes || undefined);
+
+        // Fallback: si no tiene cliente directo, buscar por placa del vehículo en la descripción
+        if (!clientId && item.description && vehiculos && vehiculos.length > 0) {
+          const descUpper = String(item.description).toUpperCase();
+          const matchedVeh = vehiculos.find((v: any) => {
+            const plate = v.license_plate ? String(v.license_plate).trim().toUpperCase() : '';
+            return plate && plate.length >= 4 && descUpper.includes(plate);
+          });
+          if (matchedVeh) {
+            clientId = resolveClientId(matchedVeh, clientes || undefined);
+          }
+        }
+
+        const rawTxDate = item.transaction_date || item.created_at || '';
+        const txDate = rawTxDate ? String(rawTxDate).replace(' ', 'T').split('T')[0] : new Date().toISOString().split('T')[0];
+
+        const rawPayDate = item.payment_date || '';
+        const payDate = rawPayDate ? String(rawPayDate).replace(' ', 'T').split('T')[0] : '';
+
+        const debit = parseFloat(item.debit) || 0;
+        const credit = parseFloat(item.credit) || 0;
+        const balance = item.balance != null ? parseFloat(item.balance) : parseFloat((debit - credit).toFixed(2));
+
+        setFormData({
+          ...item,
+          clients_fk_id: clientId || item.clients_fk_id || '',
+          transaction_date: txDate,
+          payment_date: payDate,
+          description: item.description || '',
+          debit: debit,
+          credit: credit,
+          balance: balance
+        });
       } else {
         setFormData({
           transaction_date: new Date().toISOString().split('T')[0],
+          payment_date: '',
           debit: 0,
           credit: 0,
-          balance: 0
+          balance: 0,
+          description: '',
+          clients_fk_id: ''
         });
       }
       setError(null);
     }
-  }, [isOpen, item]);
+  }, [isOpen, item, clientes, vehiculos]);
 
   if (!isOpen) return null;
 
@@ -109,6 +152,11 @@ export default function CuentaCobrarModal({ isOpen, onClose, onSuccess, item }: 
                   className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm"
                 >
                   <option value="">Seleccionar Cliente...</option>
+                  {formData.clients_fk_id && !clientes?.some((c: any) => (c.id || c.client_id) === formData.clients_fk_id) && (
+                    <option value={formData.clients_fk_id}>
+                      {item?.client_name || item?.clients?.[0]?.client_name || 'Cliente actual'} ({item?.tax_id || item?.clients?.[0]?.tax_id || formData.clients_fk_id})
+                    </option>
+                  )}
                   {clientes?.map((c: any) => (
                     <option key={c.id || c.client_id} value={c.id || c.client_id}>
                       {c.client_name} ({c.tax_id})

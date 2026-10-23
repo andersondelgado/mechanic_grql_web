@@ -166,6 +166,54 @@ export function resolveEmployeeId(item: any, empleadosList?: any[]): string {
 }
 
 /**
+ * Resuelve el identificador de un proveedor a partir de un registro y la lista de proveedores.
+ */
+export function resolveSupplierId(item: any, proveedoresList?: any[]): string {
+  if (!item) return '';
+
+  let sId = item.suppliers_fk_id;
+  if (Array.isArray(sId) && sId.length > 0) {
+    const first = sId[0];
+    sId = typeof first === 'object' ? (first?.id || first?.supplier_id || first?._id) : first;
+  } else if (sId && typeof sId === 'object') {
+    sId = sId.id || sId.supplier_id || sId._id;
+  }
+
+  if (!sId && Array.isArray(item.suppliers) && item.suppliers.length > 0) {
+    const first = item.suppliers[0];
+    sId = typeof first === 'object' ? (first?.id || first?.supplier_id || first?._id) : first;
+  } else if (!sId && item.supplier && typeof item.supplier === 'object') {
+    sId = item.supplier.id || item.supplier.supplier_id || item.supplier._id;
+  }
+
+  if (sId && proveedoresList && proveedoresList.length > 0) {
+    const strId = String(sId);
+    const found = proveedoresList.find((p: any) =>
+      (p.id && String(p.id) === strId) ||
+      (p.supplier_id && String(p.supplier_id) === strId) ||
+      (p._id && String(p._id) === strId)
+    );
+    if (found) {
+      return found.id || found.supplier_id || found._id || strId;
+    }
+  }
+
+  // Fallback por nombre de proveedor
+  const supName = item.supplier_name || item.suppliers?.[0]?.supplier_name;
+  if (supName && proveedoresList && proveedoresList.length > 0) {
+    const cleanName = String(supName).trim().toLowerCase();
+    const found = proveedoresList.find((p: any) =>
+      p.supplier_name && String(p.supplier_name).trim().toLowerCase() === cleanName
+    );
+    if (found) {
+      return found.id || found.supplier_id || found._id || '';
+    }
+  }
+
+  return typeof sId === 'string' ? sId : (sId ? String(sId) : '');
+}
+
+/**
  * Determina si un vehículo pertenece a un cliente específico.
  */
 export function isVehicleOfClient(vehicle: any, client: any): boolean {

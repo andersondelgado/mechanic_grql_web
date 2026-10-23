@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { createEntity, updateEntity } from "../../api/client";
 import { useGrqlList } from "../../hooks/use-grql";
+import { resolveClientId } from "../../utils/entityHelpers";
 
 interface VehiculoModalProps {
   isOpen: boolean;
@@ -14,28 +15,32 @@ export default function VehiculoModal({ isOpen, onClose, onSuccess, vehiculo }: 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch clients to populate the select dropdown
-  const { data: clientes, loading: loadingClientes } = useGrqlList<any[]>("GestionTallerProd_clients");
+  // Fetch clients to populate the select dropdown (up to 500 records)
+  const { data: clientes, loading: loadingClientes } = useGrqlList<any[]>("GestionTallerProd_clients", {
+    pagination: { page: 1, size: 500 }
+  });
 
   useEffect(() => {
     if (isOpen) {
       if (vehiculo) {
         // Resolve clients_fk_id from any possible format in gRQL responses
-        let clientId = "";
-        if (typeof vehiculo.clients_fk_id === "string" && vehiculo.clients_fk_id) {
-          clientId = vehiculo.clients_fk_id;
-        } else if (Array.isArray(vehiculo.clients_fk_id) && vehiculo.clients_fk_id.length > 0) {
-          const first = vehiculo.clients_fk_id[0];
-          clientId = typeof first === "object" ? (first.id || first.client_id || "") : String(first);
-        } else if (Array.isArray(vehiculo.clients) && vehiculo.clients.length > 0) {
-          clientId = vehiculo.clients[0]?.id || vehiculo.clients[0]?.client_id || "";
-        } else if (vehiculo.client && typeof vehiculo.client === "object") {
-          clientId = vehiculo.client.id || vehiculo.client.client_id || "";
+        let clientId = resolveClientId(vehiculo, clientes || undefined);
+        if (!clientId) {
+          if (typeof vehiculo.clients_fk_id === "string" && vehiculo.clients_fk_id) {
+            clientId = vehiculo.clients_fk_id;
+          } else if (Array.isArray(vehiculo.clients_fk_id) && vehiculo.clients_fk_id.length > 0) {
+            const first = vehiculo.clients_fk_id[0];
+            clientId = typeof first === "object" ? (first.id || first.client_id || "") : String(first);
+          } else if (Array.isArray(vehiculo.clients) && vehiculo.clients.length > 0) {
+            clientId = vehiculo.clients[0]?.id || vehiculo.clients[0]?.client_id || "";
+          } else if (vehiculo.client && typeof vehiculo.client === "object") {
+            clientId = vehiculo.client.id || vehiculo.client.client_id || "";
+          }
         }
 
-        setFormData({
+        setFormData((prev: any) => ({
           ...vehiculo,
-          clients_fk_id: clientId,
+          clients_fk_id: clientId || prev.clients_fk_id || "",
           license_plate: vehiculo.license_plate || "",
           brand: vehiculo.brand || "",
           model: vehiculo.model || "",
@@ -44,7 +49,7 @@ export default function VehiculoModal({ isOpen, onClose, onSuccess, vehiculo }: 
           mileage: vehiculo.mileage || "",
           vehicle_type: vehiculo.vehicle_type || vehiculo.type || "",
           observations: vehiculo.observations || ""
-        });
+        }));
       } else {
         setFormData({
           year: new Date().getFullYear()
@@ -52,7 +57,7 @@ export default function VehiculoModal({ isOpen, onClose, onSuccess, vehiculo }: 
       }
       setError(null);
     }
-  }, [isOpen, vehiculo]);
+  }, [isOpen, vehiculo, clientes]);
 
   if (!isOpen) return null;
 
@@ -185,6 +190,13 @@ export default function VehiculoModal({ isOpen, onClose, onSuccess, vehiculo }: 
                   className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm bg-white"
                 >
                   <option value="">Seleccionar cliente...</option>
+                  {/* Fallback option if client is resolved but not in the currently loaded paginated chunk */}
+                  {formData.clients_fk_id && !clientes?.some((c: any) => (c.id || c.client_id || c._id) === formData.clients_fk_id) && (
+                    <option value={formData.clients_fk_id}>
+                      {vehiculo?.clients?.[0]?.client_name || vehiculo?.owner_name || vehiculo?.client_name || "Cliente Asignado"}
+                      {vehiculo?.clients?.[0]?.tax_id || vehiculo?.owner_tax_id ? ` - ${vehiculo?.clients?.[0]?.tax_id || vehiculo?.owner_tax_id}` : ""}
+                    </option>
+                  )}
                   {loadingClientes ? (
                     <option disabled>Cargando clientes...</option>
                   ) : (

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { createEntity, updateEntity } from "../../api/client";
 import { useGrqlList } from "../../hooks/use-grql";
+import { resolveSupplierId } from "../../utils/entityHelpers";
 
 interface CompraPendienteModalProps {
   isOpen: boolean;
@@ -12,6 +13,7 @@ interface CompraPendienteModalProps {
 export default function CompraPendienteModal({ isOpen, onClose, onSuccess, compra }: CompraPendienteModalProps) {
   const [formData, setFormData] = useState<any>({
     info_date: new Date().toISOString().split('T')[0],
+    purchase_date: '',
     purchased: false,
     quantity: 1,
     unit_price: 0
@@ -19,25 +21,26 @@ export default function CompraPendienteModal({ isOpen, onClose, onSuccess, compr
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: proveedores } = useGrqlList<any[]>("GestionTallerProd_suppliers");
+  const { data: proveedores } = useGrqlList<any[]>("GestionTallerProd_suppliers", {
+    pagination: { page: 1, size: 500 }
+  });
 
   useEffect(() => {
     if (isOpen) {
       if (compra) {
-        let supplierId = compra.suppliers_fk_id;
-        if (Array.isArray(supplierId) && supplierId.length > 0) {
-          supplierId = typeof supplierId[0] === 'object' ? (supplierId[0].id || supplierId[0].supplier_id) : supplierId[0];
-        } else if (!supplierId && Array.isArray(compra.suppliers) && compra.suppliers.length > 0) {
-          supplierId = compra.suppliers[0]?.id || compra.suppliers[0]?.supplier_id;
-        }
+        const supplierId = resolveSupplierId(compra, proveedores || undefined);
 
         const rawDate = compra.info_date || compra.created_at || '';
         const infoDate = rawDate ? String(rawDate).replace(' ', 'T').split('T')[0] : new Date().toISOString().split('T')[0];
 
+        const rawPurchaseDate = compra.purchase_date || '';
+        const purchaseDate = rawPurchaseDate ? String(rawPurchaseDate).replace(' ', 'T').split('T')[0] : '';
+
         setFormData({
           ...compra,
-          suppliers_fk_id: supplierId || '',
+          suppliers_fk_id: supplierId || compra.suppliers_fk_id || '',
           info_date: infoDate,
+          purchase_date: purchaseDate,
           purchased: Boolean(compra.purchased),
           quantity: Number(compra.quantity || 1),
           unit_price: Number(compra.unit_price || 0)
@@ -45,6 +48,7 @@ export default function CompraPendienteModal({ isOpen, onClose, onSuccess, compr
       } else {
         setFormData({
           info_date: new Date().toISOString().split('T')[0],
+          purchase_date: '',
           purchased: false,
           quantity: 1,
           unit_price: 0
@@ -52,7 +56,7 @@ export default function CompraPendienteModal({ isOpen, onClose, onSuccess, compr
       }
       setError(null);
     }
-  }, [isOpen, compra]);
+  }, [isOpen, compra, proveedores]);
 
   if (!isOpen) return null;
 
@@ -161,6 +165,11 @@ export default function CompraPendienteModal({ isOpen, onClose, onSuccess, compr
                   className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm"
                 >
                   <option value="">Seleccionar Proveedor...</option>
+                  {formData.suppliers_fk_id && !proveedores?.some((s: any) => (s.id || s.supplier_id) === formData.suppliers_fk_id) && (
+                    <option value={formData.suppliers_fk_id}>
+                      {compra?.supplier_name || compra?.suppliers?.[0]?.supplier_name || 'Proveedor actual'} ({formData.suppliers_fk_id})
+                    </option>
+                  )}
                   {proveedores?.map((s: any) => (
                     <option key={s.id || s.supplier_id} value={s.id || s.supplier_id}>
                       {s.supplier_name}

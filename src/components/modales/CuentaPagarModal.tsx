@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { createEntity, updateEntity } from "../../api/client";
 import { useGrqlList } from "../../hooks/use-grql";
+import { resolveSupplierId } from "../../utils/entityHelpers";
 
 interface CuentaPagarModalProps {
   isOpen: boolean;
@@ -12,6 +13,7 @@ interface CuentaPagarModalProps {
 export default function CuentaPagarModal({ isOpen, onClose, onSuccess, item }: CuentaPagarModalProps) {
   const [formData, setFormData] = useState<any>({
     transaction_date: new Date().toISOString().split('T')[0],
+    payment_date: '',
     debit: 0,
     credit: 0,
     balance: 0
@@ -19,23 +21,49 @@ export default function CuentaPagarModal({ isOpen, onClose, onSuccess, item }: C
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: proveedores } = useGrqlList<any[]>("GestionTallerProd_suppliers");
+  const { data: proveedores } = useGrqlList<any[]>("GestionTallerProd_suppliers", {
+    pagination: { page: 1, size: 500 }
+  });
 
   useEffect(() => {
     if (isOpen) {
       if (item) {
-        setFormData(item);
+        const supplierId = resolveSupplierId(item, proveedores || undefined);
+
+        const rawTxDate = item.transaction_date || item.created_at || '';
+        const txDate = rawTxDate ? String(rawTxDate).replace(' ', 'T').split('T')[0] : new Date().toISOString().split('T')[0];
+
+        const rawPayDate = item.payment_date || '';
+        const payDate = rawPayDate ? String(rawPayDate).replace(' ', 'T').split('T')[0] : '';
+
+        const debit = parseFloat(item.debit) || 0;
+        const credit = parseFloat(item.credit) || 0;
+        const balance = item.balance != null ? parseFloat(item.balance) : parseFloat((debit - credit).toFixed(2));
+
+        setFormData({
+          ...item,
+          suppliers_fk_id: supplierId || item.suppliers_fk_id || '',
+          transaction_date: txDate,
+          payment_date: payDate,
+          description: item.description || '',
+          debit: debit,
+          credit: credit,
+          balance: balance
+        });
       } else {
         setFormData({
           transaction_date: new Date().toISOString().split('T')[0],
+          payment_date: '',
           debit: 0,
           credit: 0,
-          balance: 0
+          balance: 0,
+          description: '',
+          suppliers_fk_id: ''
         });
       }
       setError(null);
     }
-  }, [isOpen, item]);
+  }, [isOpen, item, proveedores]);
 
   if (!isOpen) return null;
 
@@ -109,6 +137,11 @@ export default function CuentaPagarModal({ isOpen, onClose, onSuccess, item }: C
                   className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm"
                 >
                   <option value="">Seleccionar Proveedor...</option>
+                  {formData.suppliers_fk_id && !proveedores?.some((s: any) => (s.id || s.supplier_id) === formData.suppliers_fk_id) && (
+                    <option value={formData.suppliers_fk_id}>
+                      {item?.supplier_name || item?.suppliers?.[0]?.supplier_name || 'Proveedor actual'} ({formData.suppliers_fk_id})
+                    </option>
+                  )}
                   {proveedores?.map((s: any) => (
                     <option key={s.id || s.supplier_id} value={s.id || s.supplier_id}>
                       {s.supplier_name}

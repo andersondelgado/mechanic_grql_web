@@ -26,9 +26,9 @@ export default function PeritajeModals({ type, isOpen, onClose, onSuccess, data 
   const chunksRef = useRef<Blob[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { data: vehiculos } = useGrqlList<any[]>("GestionTallerProd_vehicles");
-  const { data: clientes } = useGrqlList<any[]>("GestionTallerProd_clients");
-  const { data: empleados } = useGrqlList<any[]>("GestionTallerProd_employees");
+  const { data: vehiculos } = useGrqlList<any[]>("GestionTallerProd_vehicles", { pagination: { page: 1, size: 500 } });
+  const { data: clientes } = useGrqlList<any[]>("GestionTallerProd_clients", { pagination: { page: 1, size: 500 } });
+  const { data: empleados } = useGrqlList<any[]>("GestionTallerProd_employees", { pagination: { page: 1, size: 200 } });
 
   if (!isOpen) return null;
 

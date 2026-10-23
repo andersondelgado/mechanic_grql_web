@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { createEntity, updateEntity } from "../../api/client";
 import { useGrqlList } from "../../hooks/use-grql";
+import { resolveEmployeeId } from "../../utils/entityHelpers";
 
 interface ManoObraModalProps {
   isOpen: boolean;
@@ -18,28 +19,32 @@ export default function ManoObraModal({ isOpen, onClose, onSuccess, manoObra }: 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: empleados } = useGrqlList<any[]>("GestionTallerProd_employees");
+  const { data: empleados } = useGrqlList<any[]>("GestionTallerProd_employees", {
+    pagination: { page: 1, size: 200 }
+  });
 
   useEffect(() => {
     if (isOpen) {
       if (manoObra) {
-        let employeeId = manoObra.employees_fk_id;
-        if (Array.isArray(employeeId) && employeeId.length > 0) {
-          employeeId = typeof employeeId[0] === 'object' ? (employeeId[0].id || employeeId[0].employee_id) : employeeId[0];
-        } else if (!employeeId && Array.isArray(manoObra.employees) && manoObra.employees.length > 0) {
-          employeeId = manoObra.employees[0]?.id || manoObra.employees[0]?.employee_id;
+        let employeeId = resolveEmployeeId(manoObra, empleados || undefined);
+        if (!employeeId) {
+          if (Array.isArray(manoObra.employees_fk_id) && manoObra.employees_fk_id.length > 0) {
+            employeeId = typeof manoObra.employees_fk_id[0] === 'object' ? (manoObra.employees_fk_id[0].id || manoObra.employees_fk_id[0].employee_id) : manoObra.employees_fk_id[0];
+          } else if (!employeeId && Array.isArray(manoObra.employees) && manoObra.employees.length > 0) {
+            employeeId = manoObra.employees[0]?.id || manoObra.employees[0]?.employee_id;
+          }
         }
 
         const rawDate = manoObra.start_date || manoObra.created_at || '';
         const startDate = rawDate ? String(rawDate).replace(' ', 'T').split('T')[0] : new Date().toISOString().split('T')[0];
 
-        setFormData({
+        setFormData((prev: any) => ({
           ...manoObra,
-          employees_fk_id: employeeId || '',
+          employees_fk_id: employeeId || prev.employees_fk_id || '',
           start_date: startDate,
           contract_type: manoObra.contract_type || 'fijo',
           salary: Number(manoObra.salary || 0)
-        });
+        }));
       } else {
         setFormData({
           contract_type: 'fijo',
@@ -49,7 +54,7 @@ export default function ManoObraModal({ isOpen, onClose, onSuccess, manoObra }: 
       }
       setError(null);
     }
-  }, [isOpen, manoObra]);
+  }, [isOpen, manoObra, empleados]);
 
   if (!isOpen) return null;
 
@@ -116,6 +121,11 @@ export default function ManoObraModal({ isOpen, onClose, onSuccess, manoObra }: 
                   className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm bg-white font-medium"
                 >
                   <option value="">Seleccionar empleado...</option>
+                  {formData.employees_fk_id && !empleados?.some((e: any) => (e.id || e.employee_id) === formData.employees_fk_id) && (
+                    <option value={formData.employees_fk_id}>
+                      {manoObra?.employees?.[0]?.employee_name || manoObra?.assigned_mechanic || "Empleado asignado"}
+                    </option>
+                  )}
                   {empleados?.map((emp: any) => {
                     const fullName = `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || emp.employee_name || emp.name;
                     return (

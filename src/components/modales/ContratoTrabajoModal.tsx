@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { createEntity, updateEntity } from "../../api/client";
 import { useGrqlList } from "../../hooks/use-grql";
+import { resolveEmployeeId } from "../../utils/entityHelpers";
 
 interface ContratoTrabajoModalProps {
   isOpen: boolean;
@@ -19,12 +20,21 @@ export default function ContratoTrabajoModal({ isOpen, onClose, onSuccess, contr
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: empleados } = useGrqlList<any[]>("GestionTallerProd_employees");
+  const { data: empleados } = useGrqlList<any[]>("GestionTallerProd_employees", {
+    pagination: { page: 1, size: 200 }
+  });
 
   useEffect(() => {
     if (isOpen) {
       if (contrato) {
-        setFormData(contrato);
+        const empId = resolveEmployeeId(contrato, empleados || undefined);
+        const rawDate = contrato.issue_date || contrato.created_at || '';
+        const issueDate = rawDate ? String(rawDate).replace(' ', 'T').split('T')[0] : new Date().toISOString().split('T')[0];
+        setFormData((prev: any) => ({
+          ...contrato,
+          employees_fk_id: empId || prev.employees_fk_id || '',
+          issue_date: issueDate
+        }));
       } else {
         setFormData({
           issue_date: new Date().toISOString().split('T')[0],
@@ -35,7 +45,7 @@ export default function ContratoTrabajoModal({ isOpen, onClose, onSuccess, contr
       }
       setError(null);
     }
-  }, [isOpen, contrato]);
+  }, [isOpen, contrato, empleados]);
 
   if (!isOpen) return null;
 
@@ -96,6 +106,11 @@ export default function ContratoTrabajoModal({ isOpen, onClose, onSuccess, contr
                   className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm"
                 >
                   <option value="">Seleccionar Empleado...</option>
+                  {formData.employees_fk_id && !empleados?.some((emp: any) => (emp.id || emp.employee_id) === formData.employees_fk_id) && (
+                    <option value={formData.employees_fk_id}>
+                      {contrato?.employees?.[0]?.employee_name || contrato?.employee_name || "Empleado Asignado"}
+                    </option>
+                  )}
                   {empleados?.map((emp: any) => (
                     <option key={emp.id || emp.employee_id} value={emp.id || emp.employee_id}>
                       {emp.employee_name} ({emp.tax_id})
