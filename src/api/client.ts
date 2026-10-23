@@ -464,3 +464,52 @@ export async function analyzeVideo(
     data: { inspection_cards_fk_id: inspectionCardId, video_url: videoUrl, owner },
   });
 }
+
+// ─── Subida directa al bucket (bypasses lambda payload limit) ───────────────
+export interface UploadBucketResponse {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  created_at?: string;
+  url: string;
+}
+
+export function getBucketFileUrl(fileId: string, table: string = 'bucket'): string {
+  let tokenAuth = API_KEY;
+  try {
+    tokenAuth = atob(API_KEY);
+  } catch {
+    // raw if not base64
+  }
+  return `${BASE_URL}/api/secure-rQL/bucket-to-pull-queryToken-no-cache?db=${encodeURIComponent(
+    DB_NAME
+  )}&table=${encodeURIComponent(table)}&id=${encodeURIComponent(fileId)}&tokenAuth=${encodeURIComponent(
+    tokenAuth
+  )}`;
+}
+
+export async function uploadBucketFile(
+  file: File | Blob,
+  fileName?: string,
+  table: string = 'bucket'
+): Promise<UploadBucketResponse> {
+  const formData = new FormData();
+  const name = fileName || (file instanceof File ? file.name : 'archivo.bin');
+  formData.append('db', DB_NAME);
+  formData.append('table', table);
+  formData.append('files', file, name);
+
+  const res = await apiClient.post<any>('/api/secure-rQL/put-to-bucket', formData);
+  const data = res.data;
+  const fileId = data?.id;
+
+  return {
+    id: fileId,
+    name: data?.name || name,
+    size: data?.size || file.size,
+    type: data?.type || (file instanceof File ? file.type : ''),
+    created_at: data?.created_at,
+    url: fileId ? getBucketFileUrl(fileId, table) : '',
+  };
+}

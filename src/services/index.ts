@@ -15,4 +15,5 @@ export * from './inspection.service';
 export * from './security.service';
 export * from './stats.service';
 export * from './gemini-ai.service';
+export * from './file.service';
 export * from './apiClient';

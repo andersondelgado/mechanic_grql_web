@@ -8,9 +8,10 @@
  *  3. Desanida la respuesta ` { gemini_copilot: { customFunction: <payload> } } `.
  *  4. Ante cualquier fallo de red/lambda devuelve un mock local para no romper la UI.
  */
-import { workflowJson, workflowFormData } from '../api/client';
+import { workflowJson } from '../api/client';
 import type { WorkflowRequest } from '../api/workflow.types';
 import { fileToBase64 } from '../utils/base64';
+import { FileService } from './file.service';
 
 const WORKFLOW_NAME = 'workflow_taller';
 const STEP_NAME = 'gemini_copilot';
@@ -311,41 +312,31 @@ export const GeminiAiService = {
   },
 
   /**
-   * Peritaje: archivo binario original -> subida multipart al bucket -> dictamen Gemini.
+   * Peritaje: archivo binario original -> subida multipart directa al bucket -> dictamen Gemini.
    *
-   * El archivo viaja como binario (no como base64 en el JSON), el servidor lo sube al
-   * bucket y la lambda lo analiza por URL. Si la subida binaria falla y el archivo
-   * entra en el límite inline, se reintenta con el base64 (camino clásico).
+   * 1. Sube el archivo original al bucket vía `/api/secure-rQL/put-to-bucket` (espejo de Elytrabit).
+   *    Esto elude totalmente el límite de 6MB de payload de AWS Lambda.
+   * 2. Envía únicamente el ID y URL del bucket a la lambda en un JSON liviano (< 1KB).
+   * 3. La lambda descarga/analiza el recurso desde el almacenamiento persistente.
    */
   async analyzePeritajeMediaFile(file: File, payload: PeritajeMediaPayload): Promise<PeritajeAnalysisResult> {
-    try {
-      const request = buildCopilotRequest('analyze_peritaje_media', {
+    // 1. Subida del archivo al bucket
+    const uploaded = await FileService.uploadFile(file, 'bucket', file.name);
+    if (!uploaded?.id) {
+      throw new Error('No se pudo obtener el identificador del archivo subido al bucket');
+    }
+
+    // 2. Invocación de Gemini con referencia liviana al archivo del bucket
+    return toAnalysisResult(
+      await invokeCopilot('analyze_peritaje_media', {
         ...payload,
-        mime_type: payload.mime_type || file.type || undefined,
+        bucket_file_id: uploaded.id,
+        video_url: uploaded.url,
         file_name: file.name,
         file_size: file.size,
-      });
-      const response = await workflowFormData(request, file, { timeout: AI_TIMEOUT_MS, fileName: file.name });
-
-      const lambdaError = response?.error;
-      if (lambdaError) {
-        const message =
-          typeof lambdaError === 'string' ? lambdaError : lambdaError.message || JSON.stringify(lambdaError);
-        throw new Error(message);
-      }
-      return toAnalysisResult(unwrapCopilotResponse(response));
-    } catch (uploadError) {
-      if (file.size > INLINE_MAX_BYTES) throw uploadError;
-      console.warn('Fallo la subida binaria del peritaje; se reintenta con base64 inline:', uploadError);
-      const converted = await fileToBase64(file);
-      return toAnalysisResult(
-        await invokeCopilot('analyze_peritaje_media', {
-          ...payload,
-          file_base64: converted.base64,
-          mime_type: payload.mime_type || converted.mimeType,
-        })
-      );
-    }
+        mime_type: payload.mime_type || file.type || undefined,
+      })
+    );
   },
 };
 

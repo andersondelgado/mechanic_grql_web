@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { usePeritaje, usePeritajeVideos } from "../hooks/use-peritajes";
 import { createEntity, uploadVideo, analyzeVideo, callLambda, getEntity } from "../api/client";
 import { GeminiAiService } from "../services/gemini-ai.service";
-import { Base64File, fileToBase64, formatBytes } from "../utils/base64";
+import { SelectedMediaFile, createSelectedMediaFile, formatBytes } from "../utils/base64";
 import Autocomplete from "../components/ui/Autocomplete";
 import { InspectionCard, InspectionAnalysis } from "../types/entities";
 import { useGrqlList } from "../hooks/use-grql";
@@ -29,9 +29,8 @@ export default function PeritajeForm() {
   const [analysisResult, setAnalysisResult] = useState<InspectionAnalysis | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
 
-  // Archivo seleccionado manualmente, ya convertido a base64 para la IA generativa
-  const [mediaFile, setMediaFile] = useState<Base64File | null>(null);
-  const [converting, setConverting] = useState(false);
+  // Archivo seleccionado manualmente para subida directa al bucket y análisis con Gemini
+  const [mediaFile, setMediaFile] = useState<SelectedMediaFile | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -150,25 +149,27 @@ export default function PeritajeForm() {
     }
   };
 
-  const handleFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
     setError(null);
-    setConverting(true);
     try {
-      const converted = await fileToBase64(file);
-      setMediaFile(converted);
+      if (mediaFile?.previewUrl) {
+        URL.revokeObjectURL(mediaFile.previewUrl);
+      }
+      setMediaFile(createSelectedMediaFile(file));
       setAnalysisResult(null);
     } catch (err: any) {
       setMediaFile(null);
-      setError(err.message || "No se pudo convertir el archivo a base64");
-    } finally {
-      setConverting(false);
+      setError(err.message || "No se pudo preparar el archivo");
     }
   };
 
   const discardMediaFile = () => {
+    if (mediaFile?.previewUrl) {
+      URL.revokeObjectURL(mediaFile.previewUrl);
+    }
     setMediaFile(null);
     setAnalysisResult(null);
   };
@@ -473,27 +474,26 @@ export default function PeritajeForm() {
                 <i className="fas fa-file-arrow-up text-2xl text-primary mb-1.5"></i>
                 <p className="text-sm font-bold text-secondary">O sube un archivo (imagen, video o audio)</p>
                 <p className="text-xs text-gray-500 mt-0.5 mb-3">
-                  Se convierte a <span className="font-semibold text-emerald-600">base64</span> antes de
-                  enviarlo a la IA generativa
+                  Subida directa al bucket para procesamiento con{" "}
+                  <span className="font-semibold text-purple-600">Gemini AI</span>
                 </p>
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  disabled={converting}
                   className="px-4 py-2 border-2 border-primary text-primary bg-white rounded-xl hover:bg-primary/5 transition font-bold text-sm"
                 >
                   <i className="fas fa-folder-open mr-1.5"></i>
-                  {converting ? "Convirtiendo a base64..." : "Seleccionar archivo"}
+                  Seleccionar archivo
                 </button>
               </div>
             ) : (
               <div className="flex flex-col sm:flex-row items-center gap-4">
                 <div className="w-28 h-20 bg-gray-900 rounded-xl overflow-hidden flex items-center justify-center shrink-0">
                   {mediaFile.kind === "image" ? (
-                    <img src={mediaFile.dataUrl} alt={mediaFile.name} className="w-full h-full object-cover" />
+                    <img src={mediaFile.previewUrl} alt={mediaFile.name} className="w-full h-full object-cover" />
                   ) : mediaFile.kind === "video" ? (
-                    <video src={mediaFile.dataUrl} controls className="w-full h-full object-contain" />
+                    <video src={mediaFile.previewUrl} controls className="w-full h-full object-contain" />
                   ) : mediaFile.kind === "audio" ? (
-                    <audio src={mediaFile.dataUrl} controls className="w-24" />
+                    <audio src={mediaFile.previewUrl} controls className="w-24" />
                   ) : (
                     <i className="fas fa-file text-white text-2xl"></i>
                   )}
@@ -503,8 +503,8 @@ export default function PeritajeForm() {
                   <p className="text-xs text-gray-500">
                     {formatBytes(mediaFile.size)} · {mediaFile.mimeType}
                   </p>
-                  <span className="inline-flex items-center gap-1.5 mt-1.5 px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[11px] font-bold">
-                    <i className="fas fa-check"></i> Convertido a base64
+                  <span className="inline-flex items-center gap-1.5 mt-1.5 px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-[11px] font-bold">
+                    <i className="fas fa-file-shield"></i> Archivo listo para análisis
                   </span>
                 </div>
                 <div className="flex gap-2 shrink-0">

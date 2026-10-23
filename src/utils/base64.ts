@@ -18,6 +18,15 @@ export interface Base64File {
   file: File;
 }
 
+export interface SelectedMediaFile {
+  name: string;
+  size: number;
+  mimeType: string;
+  kind: FileKind;
+  previewUrl: string;
+  file: File;
+}
+
 export type FileKind = 'image' | 'video' | 'audio' | 'other';
 
 export function detectFileKind(mimeType: string): FileKind {
@@ -26,6 +35,17 @@ export function detectFileKind(mimeType: string): FileKind {
   if (mime.startsWith('video/')) return 'video';
   if (mime.startsWith('audio/')) return 'audio';
   return 'other';
+}
+
+export function createSelectedMediaFile(file: File): SelectedMediaFile {
+  return {
+    name: file.name,
+    size: file.size,
+    mimeType: file.type || 'application/octet-stream',
+    kind: detectFileKind(file.type),
+    previewUrl: URL.createObjectURL(file),
+    file,
+  };
 }
 
 export function stripDataUrl(value: string): string {

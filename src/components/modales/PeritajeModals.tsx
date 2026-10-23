@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { analyzeVideo } from "../../api/client";
 import { GeminiAiService } from "../../services/gemini-ai.service";
-import { Base64File, fileToBase64, formatBytes } from "../../utils/base64";
+import { SelectedMediaFile, createSelectedMediaFile, formatBytes } from "../../utils/base64";
 import { useGrqlList } from "../../hooks/use-grql";
 
 interface PeritajeModalProps {
@@ -19,8 +19,7 @@ export default function PeritajeModals({ type, isOpen, onClose, onSuccess, data 
   const [recordedVideoUrl, setRecordedVideoUrl] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] = useState<any>(null);
   const [analyzing, setAnalyzing] = useState(false);
-  const [mediaFile, setMediaFile] = useState<Base64File | null>(null);
-  const [converting, setConverting] = useState(false);
+  const [mediaFile, setMediaFile] = useState<SelectedMediaFile | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -92,21 +91,28 @@ export default function PeritajeModals({ type, isOpen, onClose, onSuccess, data 
     }
   };
 
-  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
     setError(null);
-    setConverting(true);
     try {
-      setMediaFile(await fileToBase64(file));
+      if (mediaFile?.previewUrl) {
+        URL.revokeObjectURL(mediaFile.previewUrl);
+      }
+      setMediaFile(createSelectedMediaFile(file));
       setAnalysisResult(null);
     } catch (err: any) {
       setMediaFile(null);
-      setError(err.message || "No se pudo convertir el archivo a base64");
-    } finally {
-      setConverting(false);
+      setError(err.message || "No se pudo preparar el archivo");
     }
+  };
+
+  const discardMediaFile = () => {
+    if (mediaFile?.previewUrl) {
+      URL.revokeObjectURL(mediaFile.previewUrl);
+    }
+    setMediaFile(null);
   };
 
   /** Archivo original (binario) -> subida multipart al bucket -> Gemini. */
@@ -259,16 +265,15 @@ export default function PeritajeModals({ type, isOpen, onClose, onSuccess, data 
                       <i className="fas fa-file-arrow-up text-xl text-primary mb-1.5"></i>
                       <p className="text-sm font-bold text-secondary">O sube un archivo</p>
                       <p className="text-xs text-gray-500 mt-0.5 mb-3">
-                        Imagen, video o audio — se convierte a{" "}
-                        <span className="font-semibold text-emerald-600">base64</span> antes de enviarlo a la IA
+                        Imagen, video o audio — subida directa al bucket para procesamiento con{" "}
+                        <span className="font-semibold text-purple-600">Gemini AI</span>
                       </p>
                       <button
                         onClick={() => fileInputRef.current?.click()}
-                        disabled={converting}
                         className="px-4 py-2 border-2 border-primary text-primary bg-white rounded-xl hover:bg-primary/5 transition font-bold text-sm"
                       >
                         <i className="fas fa-folder-open mr-1.5"></i>
-                        {converting ? "Convirtiendo a base64..." : "Seleccionar archivo"}
+                        Seleccionar archivo
                       </button>
                     </div>
                   ) : (
@@ -278,8 +283,8 @@ export default function PeritajeModals({ type, isOpen, onClose, onSuccess, data 
                         <p className="text-xs text-gray-500">
                           {formatBytes(mediaFile.size)} · {mediaFile.mimeType}
                         </p>
-                        <span className="inline-flex items-center gap-1.5 mt-1.5 px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[11px] font-bold">
-                          <i className="fas fa-check"></i> Convertido a base64
+                        <span className="inline-flex items-center gap-1.5 mt-1.5 px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-[11px] font-bold">
+                          <i className="fas fa-file-shield"></i> Archivo listo para análisis
                         </span>
                       </div>
                       <div className="flex gap-2 shrink-0">
@@ -290,7 +295,7 @@ export default function PeritajeModals({ type, isOpen, onClose, onSuccess, data 
                           <i className="fas fa-brain"></i> Procesar con IA
                         </button>
                         <button
-                          onClick={() => setMediaFile(null)}
+                          onClick={discardMediaFile}
                           title="Descartar archivo"
                           className="px-3 py-2.5 border-2 border-gray-200 text-gray-600 bg-white rounded-xl hover:bg-gray-50 transition font-bold text-sm"
                         >
