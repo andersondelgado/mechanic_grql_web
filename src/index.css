@@ -38,7 +38,7 @@ body {
 @media print {
   @page {
     size: letter portrait;
-    margin: 8mm 8mm 8mm 8mm;
+    margin: 12mm 12mm 12mm 12mm;
   }
 
   html,
@@ -145,6 +145,13 @@ body {
     break-after: auto !important;
     margin: 0 !important;
     padding: 0 !important;
+  }
+
+  /* Prevent awkward slicing of cards and sections across page breaks */
+  .print-avoid-break,
+  .peritaje-sheet .print-avoid-break {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
   /* PAGE 2: Second page of receipt */
