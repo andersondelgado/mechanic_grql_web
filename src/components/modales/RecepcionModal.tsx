@@ -89,10 +89,14 @@ export default function RecepcionModal({ isOpen, onClose, onSuccess, recepcion }
     setLoading(true);
     setError(null);
     try {
+      const payload = {
+        ...formData,
+        must_return: true,
+      };
       if (recepcion?.id) {
-        await updateEntity("GestionTallerProd_vehicle_receipts", recepcion.id, formData);
+        await updateEntity("GestionTallerProd_vehicle_receipts", recepcion.id, payload);
       } else {
-        await createEntity("GestionTallerProd_vehicle_receipts", formData);
+        await createEntity("GestionTallerProd_vehicle_receipts", payload);
       }
       onSuccess();
       onClose();

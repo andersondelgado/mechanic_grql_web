@@ -398,6 +398,7 @@ export const RecepcionWizardModal: React.FC<RecepcionWizardModalProps> = ({
       // Construct Receipt payload with guaranteed relational links
       const payload: any = {
         ...formData,
+        must_return: true,
         clients_fk_id: resolvedClientId ? [resolvedClientId] : (formData.clients_fk_id ? [formData.clients_fk_id] : []),
         vehicles_fk_id: resolvedVehicleId ? [resolvedVehicleId] : (formData.vehicles_fk_id ? [formData.vehicles_fk_id] : []),
         checklist_external: JSON.stringify(formData.checklist_external || []),
