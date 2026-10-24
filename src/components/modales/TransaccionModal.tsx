@@ -8,6 +8,25 @@ interface TransaccionModalProps {
   transaccion?: any;
 }
 
+function formatDateForInput(rawDate: any): string {
+  if (!rawDate) return new Date().toISOString().split('T')[0];
+  const str = String(rawDate).trim();
+  const match = str.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (match) return match[1];
+  const dmyMatch = str.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
+  if (dmyMatch) {
+    const day = dmyMatch[1].padStart(2, '0');
+    const month = dmyMatch[2].padStart(2, '0');
+    const year = dmyMatch[3];
+    return `${year}-${month}-${day}`;
+  }
+  const d = new Date(str);
+  if (!isNaN(d.getTime())) {
+    return d.toISOString().split('T')[0];
+  }
+  return '';
+}
+
 export default function TransaccionModal({ isOpen, onClose, onSuccess, transaccion }: TransaccionModalProps) {
   const [formData, setFormData] = useState<any>({
     transaction_date: new Date().toISOString().split('T')[0],
@@ -22,8 +41,9 @@ export default function TransaccionModal({ isOpen, onClose, onSuccess, transacci
     other_expenses: 0,
     total_expenses: 0,
     total_amount: 0,
-    exchange_rate: 1,
-    type: 'Ingreso'
+    exchange_rate: 380,
+    type: 'Ingreso',
+    description: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +51,30 @@ export default function TransaccionModal({ isOpen, onClose, onSuccess, transacci
   useEffect(() => {
     if (isOpen) {
       if (transaccion) {
-        setFormData(transaccion);
+        const totalExpenses = Number(transaccion.total_expenses || 0) || (
+          Number(transaccion.salary_expense || 0) +
+          Number(transaccion.rent_expense || 0) +
+          Number(transaccion.supplies_expense || 0) +
+          Number(transaccion.tools_equipment_expense || 0) +
+          Number(transaccion.other_expenses || 0)
+        );
+        const totalIncome = Number(transaccion.total_amount || 0) || (
+          Number(transaccion.minor_rep_income || 0) +
+          Number(transaccion.major_rep_income || 0) +
+          Number(transaccion.other_income || 0)
+        );
+        const isExp = (totalExpenses > 0) || transaccion.type === 'Gasto';
+        const amount = isExp ? totalExpenses : (totalIncome || Number(transaccion.total_amount || 0));
+        const cleanRate = (!transaccion.exchange_rate || Number(transaccion.exchange_rate) === 2026) ? 380 : Number(transaccion.exchange_rate);
+
+        setFormData({
+          ...transaccion,
+          transaction_date: formatDateForInput(transaccion.transaction_date),
+          type: isExp ? 'Gasto' : 'Ingreso',
+          total_amount: amount,
+          exchange_rate: cleanRate,
+          description: transaccion.description || ''
+        });
       } else {
         setFormData({
           transaction_date: new Date().toISOString().split('T')[0],
@@ -46,8 +89,9 @@ export default function TransaccionModal({ isOpen, onClose, onSuccess, transacci
           other_expenses: 0,
           total_expenses: 0,
           total_amount: 0,
-          exchange_rate: 1,
-          type: 'Ingreso'
+          exchange_rate: 380,
+          type: 'Ingreso',
+          description: ''
         });
       }
       setError(null);
@@ -65,23 +109,40 @@ export default function TransaccionModal({ isOpen, onClose, onSuccess, transacci
     setLoading(true);
     setError(null);
     try {
-      const payload = {
-        ...formData,
-        minor_rep_income: parseFloat(formData.minor_rep_income || 0),
-        major_rep_income: parseFloat(formData.major_rep_income || 0),
-        other_income: parseFloat(formData.other_income || 0),
-        salary_expense: parseFloat(formData.salary_expense || 0),
-        rent_expense: parseFloat(formData.rent_expense || 0),
-        supplies_expense: parseFloat(formData.supplies_expense || 0),
-        tools_equipment_expense: parseFloat(formData.tools_equipment_expense || 0),
-        other_expenses: parseFloat(formData.other_expenses || 0),
-        total_expenses: parseFloat(formData.total_expenses || 0),
-        total_amount: parseFloat(formData.total_amount || 0),
-        exchange_rate: parseFloat(formData.exchange_rate || 1),
+      const amount = parseFloat(formData.total_amount || 0);
+      const isExpense = formData.type === 'Gasto';
+      const dateStr = formData.transaction_date 
+        ? `${formData.transaction_date} 00:00:00`
+        : new Date().toISOString().split('T')[0] + ' 00:00:00';
+
+      const payload: any = {
+        month: formData.month || new Date(formData.transaction_date || new Date()).toLocaleString('es-ES', { month: 'short' }).toLowerCase(),
+        transaction_date: dateStr,
+        description: formData.description || '',
+        exchange_rate: parseFloat(formData.exchange_rate || 380),
+        minor_rep_income: isExpense ? 0 : parseFloat(formData.minor_rep_income || 0),
+        major_rep_income: isExpense ? 0 : parseFloat(formData.major_rep_income || 0),
+        other_income: isExpense ? 0 : (
+          (parseFloat(formData.minor_rep_income || 0) + parseFloat(formData.major_rep_income || 0) > 0)
+            ? parseFloat(formData.other_income || 0)
+            : amount
+        ),
+        salary_expense: isExpense ? parseFloat(formData.salary_expense || 0) : 0,
+        rent_expense: isExpense ? parseFloat(formData.rent_expense || 0) : 0,
+        supplies_expense: isExpense ? parseFloat(formData.supplies_expense || 0) : 0,
+        tools_equipment_expense: isExpense ? parseFloat(formData.tools_equipment_expense || 0) : 0,
+        other_expenses: isExpense ? (
+          (parseFloat(formData.salary_expense || 0) + parseFloat(formData.rent_expense || 0) + parseFloat(formData.supplies_expense || 0) + parseFloat(formData.tools_equipment_expense || 0) > 0)
+            ? parseFloat(formData.other_expenses || 0)
+            : amount
+        ) : 0,
+        total_expenses: isExpense ? amount : 0,
+        total_amount: amount,
       };
 
-      if (transaccion?.id) {
-        await updateEntity("GestionTallerProd_financial_transactions", transaccion.id, payload);
+      const targetId = transaccion?.id || transaccion?.transaction_id;
+      if (targetId) {
+        await updateEntity("GestionTallerProd_financial_transactions", targetId, payload);
       } else {
         await createEntity("GestionTallerProd_financial_transactions", payload);
       }

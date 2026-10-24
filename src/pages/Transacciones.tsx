@@ -2,6 +2,24 @@ import React, { useState } from "react";
 import { useGrqlList } from "../hooks/use-grql";
 import TransaccionModal from "../components/modales/TransaccionModal";
 
+function formatDisplayDate(rawDate: any): string {
+  if (!rawDate) return '—';
+  const str = String(rawDate).trim();
+  const match = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) {
+    return `${parseInt(match[3])}/${parseInt(match[2])}/${match[1]}`;
+  }
+  const dmyMatch = str.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
+  if (dmyMatch) {
+    return `${parseInt(dmyMatch[1])}/${parseInt(dmyMatch[2])}/${dmyMatch[3]}`;
+  }
+  const d = new Date(str);
+  if (!isNaN(d.getTime())) {
+    return d.toLocaleDateString('es-ES');
+  }
+  return str;
+}
+
 export default function Transacciones() {
   const [page, setPage] = useState(1);
   const { data, meta, loading, error, remove, refetch } = useGrqlList<any[]>("GestionTallerProd_financial_transactions", {
@@ -103,13 +121,25 @@ export default function Transacciones() {
                 </tr>
               ) : (
                 filteredData.map((row: any) => {
-                  const isExpense = (row.total_expenses && row.total_expenses > 0) || row.type === 'Gasto';
-                  const amount = Number(row.total_amount || row.total_expenses || 0);
+                  const totalExp = Number(row.total_expenses || 0) || (
+                    Number(row.salary_expense || 0) +
+                    Number(row.rent_expense || 0) +
+                    Number(row.supplies_expense || 0) +
+                    Number(row.tools_equipment_expense || 0) +
+                    Number(row.other_expenses || 0)
+                  );
+                  const totalInc = Number(row.total_amount || 0) || (
+                    Number(row.minor_rep_income || 0) +
+                    Number(row.major_rep_income || 0) +
+                    Number(row.other_income || 0)
+                  );
+                  const isExpense = totalExp > 0 || row.type === 'Gasto';
+                  const amount = isExpense ? totalExp : (totalInc || Number(row.total_amount || 0));
 
                   return (
                     <tr key={row.id || row.transaction_id} className="hover:bg-gray-50/70 transition-colors">
                       <td className="py-4 px-6 text-gray-700 font-medium">
-                        {row.transaction_date ? new Date(row.transaction_date).toLocaleDateString('es-ES') : '—'}
+                        {formatDisplayDate(row.transaction_date)}
                       </td>
                       <td className="py-4 px-6 font-bold text-secondary">
                         {row.description || 'Movimiento Financiero'}
