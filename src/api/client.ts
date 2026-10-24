@@ -392,11 +392,10 @@ export async function getEntitiesByFilter<T = any>(
 function sanitizeMutationPayload(table: string, data: Record<string, unknown>): Record<string, unknown> {
   const clean: Record<string, any> = { ...data };
 
-  // Eliminar arrays anidados de relaciones que vienen del GET y obj_fk obsoleto
+  // Eliminar arrays anidados de relaciones que vienen del GET
   delete clean.clients;
   delete clean.vehicles;
   delete clean.employees;
-  delete clean.obj_fk;
 
   if (table.includes('vehicle_receipts')) {
     // Si viene must_return, asegurar que sea un booleano estricto
@@ -408,16 +407,20 @@ function sanitizeMutationPayload(table: string, data: Record<string, unknown>): 
       clean.must_return = true;
     }
 
-    // Normalizar claves foráneas directamente como strings en attributes para evitar error 'fk no found'
-    if (clean.vehicles_fk_id !== undefined) {
-      clean.vehicles_fk_id = Array.isArray(clean.vehicles_fk_id) ? (clean.vehicles_fk_id[0] || '') : (clean.vehicles_fk_id || '');
-    }
-    if (clean.clients_fk_id !== undefined) {
-      clean.clients_fk_id = Array.isArray(clean.clients_fk_id) ? (clean.clients_fk_id[0] || '') : (clean.clients_fk_id || '');
-    }
-    if (clean.employees_fk_id !== undefined) {
-      clean.employees_fk_id = Array.isArray(clean.employees_fk_id) ? (clean.employees_fk_id[0] || '') : (clean.employees_fk_id || '');
-    }
+    const vArr = (Array.isArray(clean.vehicles_fk_id) ? clean.vehicles_fk_id : [clean.vehicles_fk_id]).filter(Boolean);
+    const cArr = (Array.isArray(clean.clients_fk_id) ? clean.clients_fk_id : [clean.clients_fk_id]).filter(Boolean);
+    const eArr = (Array.isArray(clean.employees_fk_id) ? clean.employees_fk_id : [clean.employees_fk_id]).filter(Boolean);
+
+    clean.vehicles_fk_id = vArr[0] || '';
+    clean.clients_fk_id = cArr[0] || '';
+    clean.employees_fk_id = eArr[0] || '';
+
+    // En vehicle_receipts el esquema declara los 3 FKs (vehicles, clients, employees); obj_fk debe incluir siempre los 3
+    clean.obj_fk = [
+      { vehicles: vArr },
+      { clients: cArr },
+      { employees: eArr }
+    ];
   }
 
   return clean;
