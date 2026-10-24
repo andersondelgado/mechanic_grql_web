@@ -205,7 +205,7 @@ export default function InformePeritajeModal({
   };
 
   return (
-    <div className="printable-modal-overlay fixed inset-0 bg-black/75 backdrop-blur-sm z-[100] flex flex-col items-center justify-start p-2 sm:p-6 overflow-y-auto print:static print:p-0 print:m-0 print:bg-white print:overflow-visible print:h-auto print:block print:inset-auto">
+    <div className="printable-modal-overlay fixed inset-0 bg-black/75 z-[100] flex flex-col items-center justify-start p-2 sm:p-6 overflow-y-auto print:static print:p-0 print:m-0 print:bg-white print:overflow-visible print:h-auto print:block print:inset-auto">
       
       {/* Barra de herramientas superior flotante (Oculta al imprimir gracias a .no-print) */}
       <div className="no-print w-full max-w-4xl bg-slate-900 text-white p-4 rounded-2xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between shadow-xl mb-4 sticky top-2 z-50 gap-3">
@@ -259,7 +259,7 @@ export default function InformePeritajeModal({
       {/* Contenedor del Documento Imprimible Oficial */}
       <div className="printable-document bg-white w-full max-w-[820px] shadow-2xl rounded-xl border border-gray-300 text-slate-900 font-sans p-6 sm:p-8 space-y-6 print:m-0 print:p-0 print:shadow-none print:border-none print:w-full print:max-w-none print:space-y-0">
         
-        <div className="page-sheet page-sheet-1 space-y-4 print:space-y-3">
+        <div className="peritaje-sheet space-y-4 print:space-y-3">
           
           {/* Header Banner Oficial */}
           <div className="border-b-2 border-slate-900 pb-3 flex items-start justify-between">

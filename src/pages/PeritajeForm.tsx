@@ -382,8 +382,9 @@ export default function PeritajeForm() {
   const partLabel = (p: any) => (typeof p === "string" ? p : p?.repuesto_id || p?.description || p?.code || "—");
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto p-4 lg:p-8">
-      {/* Title Card */}
+    <>
+      <div className="space-y-6 max-w-5xl mx-auto p-4 lg:p-8">
+        {/* Title Card */}
       <div className="bg-white rounded-2xl shadow-card border border-gray-100 p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3.5">
           <div className="p-3.5 bg-blue-50/70 text-primary rounded-2xl">
@@ -857,6 +858,7 @@ export default function PeritajeForm() {
           </div>
         </div>
       )}
+      </div>
 
       {formData.id && (
         <InformePeritajeModal
@@ -870,6 +872,6 @@ export default function PeritajeForm() {
           }}
         />
       )}
-    </div>
+    </>
   );
 }

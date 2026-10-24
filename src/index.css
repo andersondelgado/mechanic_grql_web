@@ -60,14 +60,14 @@ body {
   /* When printing from the modal, hide all background application chrome */
   body.has-printable-sheet > #root > div > aside,
   body.has-printable-sheet > #root > div > main > header,
-  body.has-printable-sheet > #root > div > main > div > *:not(.printable-modal-overlay),
+  body.has-printable-sheet > #root > div > main > div > *:not(.printable-modal-overlay):not(.has-printable-modal),
   .no-print,
   nav,
   header,
   aside,
   .sidebar,
   button,
-  .backdrop-blur-sm {
+  .backdrop-blur-sm:not(.printable-modal-overlay) {
     display: none !important;
   }
 
@@ -130,6 +130,19 @@ body {
     break-inside: avoid !important;
     page-break-after: always !important;
     break-after: page !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Peritaje report sheet: continuous natural flow without forced breaks */
+  .peritaje-sheet {
+    display: block !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    page-break-inside: auto !important;
+    break-inside: auto !important;
+    page-break-after: auto !important;
+    break-after: auto !important;
     margin: 0 !important;
     padding: 0 !important;
   }
