@@ -2,11 +2,15 @@ import React, { useState } from "react";
 import { useGrqlList } from "../hooks/use-grql";
 import { Link } from "react-router-dom";
 import PeritajeModals from "../components/modales/PeritajeModals";
+import InformePeritajeModal from "../components/modales/InformePeritajeModal";
 
 export default function Peritajes() {
   const [page, setPage] = useState(1);
   const { data, meta, loading, error, remove, refetch } = useGrqlList<any[]>("GestionTallerProd_inspection_cards", {
     pagination: { page, size: 10 }
+  });
+  const { data: analysisList } = useGrqlList<any[]>("GestionTallerProd_inspection_analysis", {
+    pagination: { page: 1, size: 500 }
   });
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -19,6 +23,24 @@ export default function Peritajes() {
     type: 'record',
     item: null
   });
+
+  const [selectedReportItem, setSelectedReportItem] = useState<any | null>(null);
+  const [isReportOpen, setIsReportOpen] = useState(false);
+
+  const openReportModal = (item: any) => {
+    setSelectedReportItem(item);
+    setIsReportOpen(true);
+  };
+
+  const hasAnalysis = (item: any) => {
+    if (Array.isArray(item.inspection_analysis) && item.inspection_analysis.length > 0) return true;
+    if (item.analysis) return true;
+    if (analysisList && analysisList.some((a: any) =>
+      a.inspection_cards_fk_id === item.id ||
+      (Array.isArray(a.inspection_cards) && a.inspection_cards.some((c: any) => (c.id || c) === item.id))
+    )) return true;
+    return false;
+  };
 
   if (loading && !data) {
     return (
@@ -135,17 +157,34 @@ export default function Peritajes() {
                       </button>
                     </td>
                     <td className="py-4 px-6 text-center">
-                      <button
-                        onClick={() => openActionModal('analyze', item)}
-                        className="px-3 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold text-xs rounded-xl transition flex items-center gap-1.5 mx-auto border border-purple-200"
-                        title="Ejecutar análisis IA"
-                      >
-                        <i className="fas fa-brain text-purple-600"></i>
-                        <span>Analizar IA</span>
-                      </button>
+                      <div className="flex items-center justify-center gap-2 flex-wrap">
+                        <button
+                          onClick={() => openReportModal(item)}
+                          className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs rounded-xl transition flex items-center gap-1.5 border border-emerald-200 shadow-2xs hover:scale-105 active:scale-95"
+                          title="Ver informe técnico de peritaje con IA, datos del cliente y vehículo"
+                        >
+                          <i className="fas fa-file-invoice text-emerald-600"></i>
+                          <span>Ver Informe</span>
+                        </button>
+                        <button
+                          onClick={() => openActionModal('analyze', item)}
+                          className="px-2.5 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold text-xs rounded-xl transition flex items-center gap-1 border border-purple-200 hover:scale-105 active:scale-95"
+                          title="Ejecutar o actualizar análisis con IA Gemini"
+                        >
+                          <i className="fas fa-brain text-purple-600"></i>
+                          <span>{hasAnalysis(item) ? "Re-analizar" : "Analizar IA"}</span>
+                        </button>
+                      </div>
                     </td>
                     <td className="py-4 px-6 text-right">
                       <div className="flex justify-end gap-1.5">
+                        <button
+                          onClick={() => openReportModal(item)}
+                          className="p-2 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition"
+                          title="Ver Informe Técnico"
+                        >
+                          <i className="fas fa-file-lines"></i>
+                        </button>
                         <button
                           onClick={() => openActionModal('record', item)}
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"
@@ -212,6 +251,16 @@ export default function Peritajes() {
         onClose={() => setModalState(prev => ({ ...prev, isOpen: false }))}
         onSuccess={refetch}
         data={modalState.item}
+      />
+
+      <InformePeritajeModal
+        isOpen={isReportOpen}
+        onClose={() => setIsReportOpen(false)}
+        peritaje={selectedReportItem}
+        onRunAiAnalysis={(item) => {
+          setIsReportOpen(false);
+          openActionModal('analyze', item);
+        }}
       />
     </div>
   );

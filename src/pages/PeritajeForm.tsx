@@ -10,6 +10,7 @@ import { InspectionCard, InspectionAnalysis } from "../types/entities";
 import { useGrqlList } from "../hooks/use-grql";
 import { useVehiculos, useClientes } from "../hooks/use-clientes";
 import { findClientForVehicle, getVehiclesForClient } from "../utils/entityHelpers";
+import InformePeritajeModal from "../components/modales/InformePeritajeModal";
 
 export default function PeritajeForm() {
   const { id } = useParams<{ id: string }>();
@@ -19,6 +20,7 @@ export default function PeritajeForm() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isReportOpen, setIsReportOpen] = useState(false);
 
   const [formData, setFormData] = useState<Partial<InspectionCard>>({
     status: "pendiente",
@@ -392,12 +394,25 @@ export default function PeritajeForm() {
             <p className="text-sm text-gray-500 mt-0.5">Control de peritaje inicial, grabación y análisis inteligente</p>
           </div>
         </div>
-        <button
-          onClick={() => navigate("/peritajes")}
-          className="px-4 py-2 border-2 border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition text-sm self-start sm:self-center"
-        >
-          <i className="fas fa-arrow-left mr-1.5"></i> Volver al Listado
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-center flex-wrap">
+          {formData.id && (
+            <button
+              type="button"
+              onClick={() => setIsReportOpen(true)}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition text-sm flex items-center gap-1.5 shadow-soft hover:scale-105 active:scale-95"
+              title="Ver informe técnico de peritaje con IA, datos del cliente y vehículo"
+            >
+              <i className="fas fa-file-invoice"></i>
+              <span>Ver Informe IA</span>
+            </button>
+          )}
+          <button
+            onClick={() => navigate("/peritajes")}
+            className="px-4 py-2 border-2 border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition text-sm"
+          >
+            <i className="fas fa-arrow-left mr-1.5"></i> Volver al Listado
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -742,8 +757,19 @@ export default function PeritajeForm() {
             <h3 className="text-lg font-bold text-secondary flex items-center gap-2">
               <i className="fas fa-brain text-purple-600"></i> Resultados del Análisis Gemini AI
             </h3>
-            <div className="px-3 py-1 bg-purple-50 text-purple-700 rounded-full font-bold text-xs border border-purple-200 flex items-center gap-1.5">
-              <i className="fas fa-circle-check"></i> Confianza: {confidencePct}%
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setIsReportOpen(true)}
+                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-soft flex items-center gap-1.5 transition"
+                title="Ver informe técnico completo para imprimir o exportar"
+              >
+                <i className="fas fa-file-invoice"></i>
+                <span>Ver Informe Completo</span>
+              </button>
+              <div className="px-3 py-1 bg-purple-50 text-purple-700 rounded-full font-bold text-xs border border-purple-200 flex items-center gap-1.5">
+                <i className="fas fa-circle-check"></i> Confianza: {confidencePct}%
+              </div>
             </div>
           </div>
 
@@ -830,6 +856,19 @@ export default function PeritajeForm() {
             </ol>
           </div>
         </div>
+      )}
+
+      {formData.id && (
+        <InformePeritajeModal
+          isOpen={isReportOpen}
+          onClose={() => setIsReportOpen(false)}
+          peritaje={{
+            ...formData,
+            inspection_analysis: analysisResult ? [analysisResult] : undefined,
+            vehicles: selectedVehicleObj ? [selectedVehicleObj] : undefined,
+            clients: selectedClientObj ? [selectedClientObj] : undefined,
+          }}
+        />
       )}
     </div>
   );
