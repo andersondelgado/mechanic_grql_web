@@ -389,12 +389,47 @@ export async function getEntitiesByFilter<T = any>(
   return extractData<T[]>(response) ?? [];
 }
 
+function sanitizeMutationPayload(table: string, data: Record<string, unknown>): Record<string, unknown> {
+  const clean: Record<string, any> = { ...data };
+
+  // Eliminar arrays anidados de relaciones que vienen del GET y obj_fk obsoleto
+  delete clean.clients;
+  delete clean.vehicles;
+  delete clean.employees;
+  delete clean.obj_fk;
+
+  if (table.includes('vehicle_receipts')) {
+    // Si viene must_return, asegurar que sea un booleano estricto
+    if (clean.must_return !== undefined) {
+      clean.must_return = typeof clean.must_return === 'boolean'
+        ? clean.must_return
+        : (clean.must_return === 'true' || clean.must_return === true || clean.must_return === 1 || clean.must_return === '1');
+    } else {
+      clean.must_return = true;
+    }
+
+    // Normalizar claves foráneas directamente como strings en attributes para evitar error 'fk no found'
+    if (clean.vehicles_fk_id !== undefined) {
+      clean.vehicles_fk_id = Array.isArray(clean.vehicles_fk_id) ? (clean.vehicles_fk_id[0] || '') : (clean.vehicles_fk_id || '');
+    }
+    if (clean.clients_fk_id !== undefined) {
+      clean.clients_fk_id = Array.isArray(clean.clients_fk_id) ? (clean.clients_fk_id[0] || '') : (clean.clients_fk_id || '');
+    }
+    if (clean.employees_fk_id !== undefined) {
+      clean.employees_fk_id = Array.isArray(clean.employees_fk_id) ? (clean.employees_fk_id[0] || '') : (clean.employees_fk_id || '');
+    }
+  }
+
+  return clean;
+}
+
 export async function createEntity<T = any>(
   table: string,
   data: Record<string, unknown>,
   options?: RequestOptions
 ): Promise<T | null> {
-  const request = buildMutationRequest(WORKFLOW_NAME, table, 'create', { body: data });
+  const sanitized = sanitizeMutationPayload(table, data);
+  const request = buildMutationRequest(WORKFLOW_NAME, table, 'create', { body: sanitized });
   const response = await workflowJson<WorkflowResponse<T>>(request, 'workflow_taller_js', 'lambda', options);
   return extractData<T>(response);
 }
@@ -405,8 +440,9 @@ export async function updateEntity<T = any>(
   data: Record<string, unknown>,
   options?: RequestOptions
 ): Promise<T | null> {
+  const sanitized = sanitizeMutationPayload(table, { ...data, id });
   const request = buildMutationRequest(WORKFLOW_NAME, table, 'putById', {
-    body: { ...data, id },
+    body: sanitized,
     path: { id },
   });
   const response = await workflowJson<WorkflowResponse<T>>(request, 'workflow_taller_js', 'lambda', options);
