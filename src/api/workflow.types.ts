@@ -188,11 +188,24 @@ export function buildQueryRequest(
   actionName: string,
   query?: WorkflowQuery
 ): WorkflowRequest {
-  const existingArrayFilter = query?.arrayFilter || [];
-  const hasInverseFk = existingArrayFilter.some((f: any) => f?.field === '_inverse_fk');
+  const rawArrayFilter = query?.arrayFilter || [];
+  const normalizedArrayFilter: Array<Record<string, unknown>> = [];
+
+  for (const item of rawArrayFilter) {
+    if (!item || typeof item !== 'object') continue;
+    if ('field' in item) {
+      normalizedArrayFilter.push(item);
+    } else {
+      for (const [k, v] of Object.entries(item)) {
+        normalizedArrayFilter.push({ field: k, value: v });
+      }
+    }
+  }
+
+  const hasInverseFk = normalizedArrayFilter.some((f: any) => f?.field === '_inverse_fk');
   const arrayFilter = hasInverseFk
-    ? existingArrayFilter
-    : [{ field: '_inverse_fk', value: true }, ...existingArrayFilter];
+    ? normalizedArrayFilter
+    : [{ field: '_inverse_fk', value: true }, ...normalizedArrayFilter];
 
   const mergedQuery: WorkflowQuery = {
     ...(query ?? {}),
@@ -201,17 +214,22 @@ export function buildQueryRequest(
   if ('_inverse_fk' in mergedQuery) {
     delete (mergedQuery as any)._inverse_fk;
   }
-  if (mergedQuery.filter) {
-    if ((mergedQuery.filter as any).id) {
-      const idVal = (mergedQuery.filter as any).id;
-      if (!arrayFilter.some((f: any) => f?.field === 'id')) {
-        arrayFilter.push({ field: 'id', value: idVal });
+
+  if (mergedQuery.filter && typeof mergedQuery.filter === 'object') {
+    const filterObj = mergedQuery.filter as Record<string, unknown>;
+    if ('field' in filterObj && 'value' in filterObj) {
+      const fName = String(filterObj.field);
+      if (!arrayFilter.some((f: any) => f?.field === fName)) {
+        arrayFilter.push({ field: fName, value: filterObj.value });
       }
-      delete (mergedQuery.filter as any).id;
+    } else {
+      for (const [k, v] of Object.entries(filterObj)) {
+        if (!arrayFilter.some((f: any) => f?.field === k)) {
+          arrayFilter.push({ field: k, value: v });
+        }
+      }
     }
-    if (Object.keys(mergedQuery.filter).length === 0) {
-      delete mergedQuery.filter;
-    }
+    delete mergedQuery.filter;
   }
 
   return {

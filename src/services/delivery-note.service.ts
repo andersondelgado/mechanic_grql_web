@@ -27,7 +27,7 @@ export const DeliveryNoteService = {
 
   // Items
   getItemsByNoteId: (noteId: string) =>
-    getEntitiesByFilter<DeliveryNoteItem>(TABLE_ITEMS, [{ delivery_notes_fk_id: noteId }]),
+    getEntitiesByFilter<DeliveryNoteItem>(TABLE_ITEMS, [{ field: 'delivery_notes_fk_id', value: noteId }]),
   createItem: (data: Partial<DeliveryNoteItem>) =>
     createEntity<DeliveryNoteItem>(TABLE_ITEMS, data as Record<string, unknown>),
   updateItem: (id: string, data: Partial<DeliveryNoteItem>) =>

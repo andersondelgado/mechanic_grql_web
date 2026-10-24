@@ -27,7 +27,7 @@ export const QuoteService = {
 
   // Quote Items
   getItemsByQuoteId: (quoteId: string) =>
-    getEntitiesByFilter<QuoteItem>(TABLE_ITEMS, [{ quotes_fk_id: quoteId }]),
+    getEntitiesByFilter<QuoteItem>(TABLE_ITEMS, [{ field: 'quotes_fk_id', value: quoteId }]),
   createItem: (data: Partial<QuoteItem>) =>
     createEntity<QuoteItem>(TABLE_ITEMS, data as Record<string, unknown>),
   updateItem: (id: string, data: Partial<QuoteItem>) =>
