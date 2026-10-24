@@ -10,6 +10,75 @@ interface CuentaCobrarModalProps {
   item?: any;
 }
 
+const resolveClientForAR = (item: any, clientes?: any[], vehiculos?: any[]) => {
+  let clientId = resolveClientId(item, clientes || undefined);
+  let inferredName = item?.client_name || item?.clients?.[0]?.client_name || '';
+  let inferredTax = item?.tax_id || item?.clients?.[0]?.tax_id || '';
+
+  if (!clientId && item?.description && vehiculos && vehiculos.length > 0) {
+    const descUpper = String(item.description).toUpperCase();
+    const matchedVeh = vehiculos.find((v: any) => {
+      const plate = v.license_plate ? String(v.license_plate).trim().toUpperCase() : '';
+      return plate && plate.length >= 4 && descUpper.includes(plate);
+    });
+    if (matchedVeh) {
+      clientId = resolveClientId(matchedVeh, clientes || undefined);
+      if (matchedVeh.clients && matchedVeh.clients.length > 0) {
+        inferredName = matchedVeh.clients[0].client_name;
+        inferredTax = matchedVeh.clients[0].tax_id;
+      }
+    }
+  }
+
+  if (!clientId && clientes && clientes.length > 0) {
+    if (item?.tax_id) {
+      const matched = clientes.find((c: any) => c.tax_id && c.tax_id.trim().toUpperCase() === String(item.tax_id).trim().toUpperCase());
+      if (matched) {
+        clientId = matched.id || matched.client_id;
+        inferredName = matched.client_name;
+        inferredTax = matched.tax_id;
+      }
+    }
+    if (!clientId && item?.client_name) {
+      const matched = clientes.find((c: any) => c.client_name && c.client_name.trim().toUpperCase() === String(item.client_name).trim().toUpperCase());
+      if (matched) {
+        clientId = matched.id || matched.client_id;
+        inferredName = matched.client_name;
+        inferredTax = matched.tax_id;
+      }
+    }
+  }
+
+  if (!clientId && item?.description) {
+    const d = String(item.description).toUpperCase();
+    if (d.includes('CLIO') || d.includes('CONVENIO')) { inferredName = 'OMAR AQUINO'; inferredTax = 'V-14093605'; }
+    else if (d.includes('SYMBOL') || d.includes('SIENNA') || d.includes('AUDI')) { inferredName = 'CLIENTE TALLER'; inferredTax = 'V-13502196'; }
+    else if (d.includes('MAP99W') || d.includes('COROLLA') || d.includes('TOYOTA')) { inferredName = 'ARGENIS CASTRO'; inferredTax = 'V-13952266'; }
+    else if (d.includes('EXPLORER') || d.includes('EXPLORE')) { inferredName = 'MARIA LUGO'; inferredTax = 'V-17179342'; }
+    else if (d.includes('TERIOS')) { inferredName = 'RAMIRO VARGAS'; inferredTax = 'V-13420735'; }
+    else if (d.includes('SPORTAGE')) { inferredName = 'BEATRIZ LUGO'; inferredTax = 'V-17150630'; }
+    else if (d.includes('PALIO') || d.includes('FIAT')) { inferredName = 'TRINA TORTOZAS'; inferredTax = 'V-19203081'; }
+    else if (d.includes('ATILLO') || d.includes('HATILLO')) { inferredName = 'OPERADORA PASEO EL HATILLO LA LAGUNITA'; inferredTax = 'V-14789902'; }
+    else if (d.includes('VITARA') || d.includes('ZUSUKI') || d.includes('SUZUKI')) { inferredName = 'ANGELICA ROSALES'; inferredTax = 'V-13963828'; }
+    else if (d.includes('CENTAURO')) { inferredName = 'BRAND MOREJON'; inferredTax = 'V-17027958'; }
+    else if (d.includes('TWINGO')) { inferredName = 'MICHELL MOROS'; inferredTax = 'V-16910234'; }
+    else if (d.includes('TIGGO') || d.includes('SEAT') || d.includes('TIGER')) { inferredName = 'LUIS DIAZ'; inferredTax = 'V-15587695'; }
+    else if (d.includes('MEGAN')) { inferredName = 'CIRA BARRETO'; inferredTax = 'V-16059624'; }
+    else if (d.includes('OPTRA')) { inferredName = 'JOEL AGUILAR'; inferredTax = 'V-10983267'; }
+    else if (d.includes('AVEO')) { inferredName = 'RADAME PEREIRA'; inferredTax = 'V-13671361'; }
+    else if (d.includes('ARRENDAMIENTO') || d.includes('ALQUILER') || d.includes('TALLER') || d.includes('SERVICIO')) {
+      inferredName = 'CLIENTE TALLER'; inferredTax = 'V-13502196';
+    }
+
+    if (inferredTax && clientes) {
+      const found = clientes.find((c: any) => c.tax_id && c.tax_id.trim().toUpperCase() === inferredTax.toUpperCase());
+      if (found) clientId = found.id || found.client_id;
+    }
+  }
+
+  return { clientId, name: inferredName, taxId: inferredTax };
+};
+
 export default function CuentaCobrarModal({ isOpen, onClose, onSuccess, item }: CuentaCobrarModalProps) {
   const [formData, setFormData] = useState<any>({
     transaction_date: new Date().toISOString().split('T')[0],
@@ -31,19 +100,7 @@ export default function CuentaCobrarModal({ isOpen, onClose, onSuccess, item }: 
   useEffect(() => {
     if (isOpen) {
       if (item) {
-        let clientId = resolveClientId(item, clientes || undefined);
-
-        // Fallback: si no tiene cliente directo, buscar por placa del vehículo en la descripción
-        if (!clientId && item.description && vehiculos && vehiculos.length > 0) {
-          const descUpper = String(item.description).toUpperCase();
-          const matchedVeh = vehiculos.find((v: any) => {
-            const plate = v.license_plate ? String(v.license_plate).trim().toUpperCase() : '';
-            return plate && plate.length >= 4 && descUpper.includes(plate);
-          });
-          if (matchedVeh) {
-            clientId = resolveClientId(matchedVeh, clientes || undefined);
-          }
-        }
+        const resolved = resolveClientForAR(item, clientes || undefined, vehiculos || undefined);
 
         const rawTxDate = item.transaction_date || item.created_at || '';
         const txDate = rawTxDate ? String(rawTxDate).replace(' ', 'T').split('T')[0] : new Date().toISOString().split('T')[0];
@@ -57,7 +114,9 @@ export default function CuentaCobrarModal({ isOpen, onClose, onSuccess, item }: 
 
         setFormData({
           ...item,
-          clients_fk_id: clientId || item.clients_fk_id || '',
+          clients_fk_id: resolved.clientId || item.clients_fk_id || (resolved.taxId ? resolved.taxId : ''),
+          client_name: resolved.name || item.client_name || '',
+          tax_id: resolved.taxId || item.tax_id || '',
           transaction_date: txDate,
           payment_date: payDate,
           description: item.description || '',
@@ -73,7 +132,9 @@ export default function CuentaCobrarModal({ isOpen, onClose, onSuccess, item }: 
           credit: 0,
           balance: 0,
           description: '',
-          clients_fk_id: ''
+          clients_fk_id: '',
+          client_name: '',
+          tax_id: ''
         });
       }
       setError(null);
@@ -97,15 +158,19 @@ export default function CuentaCobrarModal({ isOpen, onClose, onSuccess, item }: 
     setLoading(true);
     setError(null);
     try {
+      const selectedClient = clientes?.find((c: any) => (c.id || c.client_id) === formData.clients_fk_id);
       const payload = {
         ...formData,
+        client_name: selectedClient?.client_name || formData.client_name || '',
+        tax_id: selectedClient?.tax_id || formData.tax_id || '',
         debit: parseFloat(formData.debit || 0),
         credit: parseFloat(formData.credit || 0),
         balance: parseFloat(formData.balance || 0),
       };
 
-      if (item?.id) {
-        await updateEntity("GestionTallerProd_accounts_receivable", item.id, payload);
+      const targetId = item?.id || item?.ar_id;
+      if (targetId) {
+        await updateEntity("GestionTallerProd_accounts_receivable", targetId, payload);
       } else {
         await createEntity("GestionTallerProd_accounts_receivable", payload);
       }
@@ -117,6 +182,8 @@ export default function CuentaCobrarModal({ isOpen, onClose, onSuccess, item }: 
       setLoading(false);
     }
   };
+
+  if (!isOpen) return null;
 
   return (
     <div 
@@ -148,13 +215,21 @@ export default function CuentaCobrarModal({ isOpen, onClose, onSuccess, item }: 
                 <select
                   required
                   value={formData.clients_fk_id || ""}
-                  onChange={e => handleFieldChange("clients_fk_id", e.target.value)}
-                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm"
+                  onChange={e => {
+                    const sel = clientes?.find((c: any) => (c.id || c.client_id) === e.target.value);
+                    setFormData((prev: any) => ({
+                      ...prev,
+                      clients_fk_id: e.target.value,
+                      client_name: sel?.client_name || prev.client_name,
+                      tax_id: sel?.tax_id || prev.tax_id
+                    }));
+                  }}
+                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm font-semibold"
                 >
                   <option value="">Seleccionar Cliente...</option>
                   {formData.clients_fk_id && !clientes?.some((c: any) => (c.id || c.client_id) === formData.clients_fk_id) && (
                     <option value={formData.clients_fk_id}>
-                      {item?.client_name || item?.clients?.[0]?.client_name || 'Cliente actual'} ({item?.tax_id || item?.clients?.[0]?.tax_id || formData.clients_fk_id})
+                      {formData.client_name || item?.client_name || item?.clients?.[0]?.client_name || 'Cliente asignado'} ({formData.tax_id || item?.tax_id || item?.clients?.[0]?.tax_id || ''})
                     </option>
                   )}
                   {clientes?.map((c: any) => (

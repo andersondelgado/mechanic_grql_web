@@ -60,7 +60,9 @@ function App() {
             {/* Finanzas */}
             <Route path="transacciones" element={<Transacciones />} />
             <Route path="cuentas-cobrar" element={<CuentasCobrar />} />
+            <Route path="cuentas_cobrar" element={<CuentasCobrar />} />
             <Route path="cuentas-pagar" element={<CuentasPagar />} />
+            <Route path="cuentas_pagar" element={<CuentasPagar />} />
 
             {/* Latonería */}
             <Route path="materiales" element={<Materiales />} />
