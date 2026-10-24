@@ -370,7 +370,7 @@ export async function getEntityById<T = any>(
   options?: RequestOptions
 ): Promise<T | null> {
   const request = buildQueryRequest(WORKFLOW_NAME, table, 'get', {
-    filter: { id },
+    arrayFilter: [{ field: 'id', value: id }],
   });
   const response = await workflowJson<WorkflowResponse<T[]>>(request, 'workflow_taller_js', 'lambda', options);
   const data = extractData<T[]>(response);

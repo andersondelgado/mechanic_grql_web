@@ -201,6 +201,18 @@ export function buildQueryRequest(
   if ('_inverse_fk' in mergedQuery) {
     delete (mergedQuery as any)._inverse_fk;
   }
+  if (mergedQuery.filter) {
+    if ((mergedQuery.filter as any).id) {
+      const idVal = (mergedQuery.filter as any).id;
+      if (!arrayFilter.some((f: any) => f?.field === 'id')) {
+        arrayFilter.push({ field: 'id', value: idVal });
+      }
+      delete (mergedQuery.filter as any).id;
+    }
+    if (Object.keys(mergedQuery.filter).length === 0) {
+      delete mergedQuery.filter;
+    }
+  }
 
   return {
     request: {
