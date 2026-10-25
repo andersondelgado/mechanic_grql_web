@@ -142,7 +142,7 @@ export default function Dashboard() {
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
           <div className="absolute inset-y-0 left-0 w-72 bg-secondary text-white shadow-xl overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-3 p-4 border-b border-gray-700 bg-secondary/80">
-              <img src="/logo-taller-360.png" alt="Logo Taller 360" className="w-10 h-10 object-contain rounded-xl bg-white/10 p-1 shadow-sm border border-white/10" />
+              <img src="/logo-taller-360.svg" alt="Logo Taller 360" className="w-10 h-10 object-cover rounded-xl shadow-md border border-white/15 shrink-0" />
               <div>
                 <h2 className="font-bold text-lg leading-tight">Taller 360</h2>
                 <p className="text-xs text-gray-400">Menú Principal</p>
@@ -193,7 +193,7 @@ export default function Dashboard() {
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 lg:z-30 bg-secondary text-white lg:overflow-y-auto border-r border-gray-800">
         <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-700 bg-secondary/80">
-          <img src="/logo-taller-360.png" alt="Logo Taller 360" className="w-11 h-11 object-contain rounded-xl bg-white/10 p-1 shadow-sm border border-white/10" />
+          <img src="/logo-taller-360.svg" alt="Logo Taller 360" className="w-11 h-11 object-cover rounded-xl shadow-md border border-white/15 shrink-0" />
           <div>
             <h1 className="font-bold text-base leading-tight">Taller Integral 360</h1>
             <p className="text-[11px] text-gray-400">Urbaez Motors 2030 C.A.</p>

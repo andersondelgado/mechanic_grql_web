@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="garageBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a101d" />
+      <stop offset="50%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#1e293b" />
+    </linearGradient>
+
+    <!-- Primary Accent Gradient -->
+    <linearGradient id="cyanGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+
+    <!-- Speedometer Gauge Gradient (Cyan to Amber to Red) -->
+    <linearGradient id="gaugeGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0ea5e4" />
+      <stop offset="55%" stop-color="#38bdf8" />
+      <stop offset="80%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#ef4444" />
+    </linearGradient>
+
+    <!-- Metallic White Text Gradient -->
+    <linearGradient id="silverText" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#e2e8f0" />
+    </linearGradient>
+
+    <!-- Drop Shadow -->
+    <filter id="badgeShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2.5" flood-color="#000000" flood-opacity="0.7" />
+    </filter>
+  </defs>
+
+  <!-- Background Base Container -->
+  <rect width="100" height="100" rx="20" fill="url(#garageBg)" />
+  
+  <!-- Subtle Inner Border Highlight -->
+  <rect width="97" height="97" x="1.5" y="1.5" rx="18.5" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="1.2" />
+
+  <!-- Speedometer / Tachometer Dial Arcs (Top Right) -->
+  <g transform="translate(68, 22) rotate(-8)" opacity="0.95">
+    <path d="M -16,4 A 24,24 0 0,1 14,-1" fill="none" stroke="url(#gaugeGrad)" stroke-width="3.2" stroke-linecap="round" stroke-dasharray="5 2.5" />
+    <path d="M -13,9 A 18,18 0 0,1 11,5" fill="none" stroke="url(#cyanGlow)" stroke-width="2.2" stroke-linecap="round" stroke-dasharray="4 2" opacity="0.8" />
+    <polygon points="12,1 4,5 6,7" fill="#ef4444" />
+  </g>
+
+  <!-- Central 360 Typography -->
+  <g transform="skewX(-12)" filter="url(#badgeShadow)">
+    <text x="44" y="47" 
+          font-family="system-ui, -apple-system, 'Segoe UI', 'Inter', 'Montserrat', Arial, sans-serif" 
+          font-weight="900" 
+          font-style="italic" 
+          font-size="37" 
+          letter-spacing="-1.5"
+          fill="url(#silverText)" 
+          text-anchor="middle">
+      360
+    </text>
+    <!-- Degree / Speed Accent Dot -->
+    <circle cx="71" cy="25" r="3.2" fill="url(#cyanGlow)" />
+  </g>
+
+  <!-- GARAGE Text with balanced side speed streaks -->
+  <!-- Total span is balanced between x=16 and x=84 (center at x=50) -->
+  <g transform="skewX(-12)">
+    <!-- Left Speed Streaks (Aligned horizontally with GARAGE text) -->
+    <rect x="15" y="60.5" width="6.5" height="2" rx="1" fill="#38bdf8" opacity="0.85" />
+    <rect x="17.5" y="63.8" width="4" height="1.6" rx="0.8" fill="#0ea5e4" opacity="0.65" />
+
+    <!-- GARAGE Subtitle (Centered at x=50, crisp letter spacing) -->
+    <text x="50" y="66" 
+          font-family="system-ui, -apple-system, 'Segoe UI', 'Inter', 'Montserrat', Arial, sans-serif" 
+          font-weight="800" 
+          font-style="italic" 
+          font-size="11.8" 
+          letter-spacing="2.2" 
+          fill="#38bdf8" 
+          text-anchor="middle">
+      GARAGE
+    </text>
+
+    <!-- Right Speed Streaks (Symmetric and contained within badge boundary) -->
+    <rect x="78.5" y="60.5" width="6.5" height="2" rx="1" fill="#38bdf8" opacity="0.85" />
+    <rect x="78.5" y="63.8" width="4" height="1.6" rx="0.8" fill="#0ea5e4" opacity="0.65" />
+  </g>
+
+  <!-- Bottom Speed Racing Underlines -->
+  <g transform="skewX(-12)">
+    <rect x="20" y="73.5" width="60" height="2" rx="1" fill="url(#cyanGlow)" />
+    <rect x="28" y="77" width="44" height="1.4" rx="0.7" fill="#38bdf8" opacity="0.6" />
+  </g>
+</svg>
