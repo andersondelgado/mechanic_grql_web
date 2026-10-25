@@ -328,9 +328,9 @@ export async function downloadReceiptPdf(receipt: VehicleReceipt): Promise<void>
   }
 
   page1.drawLine({ start: { x: 335, y: 95 }, end: { x: 565, y: 95 }, color: rgb(0.7, 0.7, 0.7), thickness: 1 });
-  page1.drawText(receipt.received_by || receipt.receiving_technician || 'Taller Integrale$ 360 Garage', { x: 335, y: 82, size: 8, font: helvetica });
+  page1.drawText(receipt.received_by || receipt.receiving_technician || 'Taller Integral 360 Garage', { x: 335, y: 82, size: 8, font: helvetica });
 
-  page1.drawText('Página 1 de 2 • Taller Integrale$ 360 Garage C.A.', { x: width - 240, y: 40, size: 7, font: helvetica, color: rgb(0.5, 0.5, 0.5) });
+  page1.drawText('Página 1 de 2 • Taller Integral 360 Garage C.A.', { x: width - 240, y: 40, size: 7, font: helvetica, color: rgb(0.5, 0.5, 0.5) });
 
   // ─── PÁGINA 2: Inventario 77 Puntos y Servicios Autorizados ──────────
   const page2 = pdfDoc.addPage([612, 792]);
@@ -386,7 +386,7 @@ export async function downloadReceiptPdf(receipt: VehicleReceipt): Promise<void>
     color: rgb(0.4, 0.4, 0.4),
   });
 
-  page2.drawText('Página 2 de 2 • Taller Integrale$ 360 Garage C.A.', { x: width - 240, y: 40, size: 7, font: helvetica, color: rgb(0.5, 0.5, 0.5) });
+  page2.drawText('Página 2 de 2 • Taller Integral 360 Garage C.A.', { x: width - 240, y: 40, size: 7, font: helvetica, color: rgb(0.5, 0.5, 0.5) });
 
   const pdfBytes = await pdfDoc.save();
 
@@ -695,7 +695,7 @@ export async function downloadInspectionReportPdf(params: InspectionReportPdfPar
   page.drawText('Firma de Conformidad del Cliente', { x: 330, y: 95, size: 6.5, font: helvetica, color: rgb(0.5, 0.5, 0.5) });
 
   // 7. Pie de Página
-  page.drawText('Documento de diagnóstico asistido por IA generativa • Taller Integrale$ 360 Garage C.A.', {
+  page.drawText('Documento de diagnóstico asistido por IA generativa • Taller Integral 360 Garage C.A.', {
     x: 45,
     y: 50,
     size: 7,

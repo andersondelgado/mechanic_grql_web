@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Taller Integrale$ 360 Garage - React Web Application",
+  "description": "Taller Integral 360 Garage - React Web Application",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

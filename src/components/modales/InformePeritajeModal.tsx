@@ -519,7 +519,7 @@ export default function InformePeritajeModal({
 
           {/* Pie de página oficial */}
           <div className="text-center pt-3 print:pt-1 pb-1 border-t border-slate-200 text-[10px] print:text-[9px] text-slate-400 print-avoid-break">
-            Documento de diagnóstico asistido por IA generativa • Taller Integrale$ 360 Garage C.A. • {new Date().getFullYear()}
+            Documento de diagnóstico asistido por IA generativa • Taller Integral 360 Garage C.A. • {new Date().getFullYear()}
           </div>
 
         </div>

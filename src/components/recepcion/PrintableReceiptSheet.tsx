@@ -297,7 +297,7 @@ export const PrintableReceiptSheet: React.FC<PrintableReceiptSheetProps> = ({ re
           </div>
 
           <div className="text-[10px] text-slate-400 text-right">
-            Página 1 de 2 • Taller Integrale$ 360 Garage C.A.
+            Página 1 de 2 • Taller Integral 360 Garage C.A.
           </div>
         </div>
 
@@ -424,13 +424,13 @@ export const PrintableReceiptSheet: React.FC<PrintableReceiptSheetProps> = ({ re
               </div>
               <div className="border-t border-slate-400 pt-1">
                 <p className="font-bold text-[11px] text-slate-900">{receipt.receiving_technician || receipt.received_by || 'Técnico Receptor'}</p>
-                <p className="text-[10px] text-slate-500">Por Taller Integrale$ 360 Garage C.A.</p>
+                <p className="text-[10px] text-slate-500">Por Taller Integral 360 Garage C.A.</p>
               </div>
             </div>
           </div>
 
           <div className="text-[10px] text-slate-400 text-right">
-            Página 2 de 2 • Taller Integrale$ 360 Garage C.A.
+            Página 2 de 2 • Taller Integral 360 Garage C.A.
           </div>
         </div>
       </div>
