@@ -12,6 +12,13 @@ export default function CuentasPagar() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
 
+  const { data: proveedores } = useGrqlList<any[]>("GestionTallerProd_suppliers", {
+    pagination: { page: 1, size: 500 }
+  });
+  const { data: empleados } = useGrqlList<any[]>("GestionTallerProd_employees", {
+    pagination: { page: 1, size: 500 }
+  });
+
   if (loading && !data) {
     return (
       <div className="flex h-96 items-center justify-center bg-gray-50">
@@ -23,11 +30,67 @@ export default function CuentasPagar() {
     );
   }
 
+  const resolveSupplierInfo = (row: any) => {
+    if (row.suppliers && Array.isArray(row.suppliers) && row.suppliers.length > 0) {
+      return { 
+        name: row.suppliers[0].supplier_name, 
+        contact: row.suppliers[0].contact_person || '', 
+        phone: row.suppliers[0].cell_phone || '' 
+      };
+    }
+    if (row.supplier_name) {
+      return { name: row.supplier_name, contact: row.contact_person || '', phone: row.cell_phone || '' };
+    }
+    if (row.suppliers_fk_id && proveedores) {
+      const s = proveedores.find((item: any) => (item.id || item.supplier_id) === row.suppliers_fk_id);
+      if (s) return { name: s.supplier_name, contact: s.contact_person || '', phone: s.cell_phone || '' };
+    }
+    if (row.employees_fk_id && empleados) {
+      const e = empleados.find((item: any) => (item.id || item.employee_id) === row.employees_fk_id);
+      if (e) return { name: e.employee_name, contact: e.position || 'Personal / Mecánico', phone: e.phone || '' };
+    }
+
+    const desc = String(row.description || '').toUpperCase();
+    if (desc.includes('WILLIANS') || desc.includes('WILLIAN')) {
+      return { name: 'WILLIANS ORTEGA', contact: 'Mecánico de Motor y Frenos', phone: '0424-1849201' };
+    }
+    if (desc.includes('YEISON') || desc.includes('JEISON')) {
+      return { name: 'YEISON TORRES', contact: 'Mecánico y Electricista', phone: '0412-9928192' };
+    }
+    if (desc.includes('ERIK') || desc.includes('MUÑOZ') || desc.includes('MUÑOIZ')) {
+      return { name: 'ERIK MUÑOZ', contact: 'Mecánico Principal', phone: '0414-2391823' };
+    }
+    if (desc.includes('SAMIR')) {
+      return { name: 'SAMIR EL SOUKI', contact: 'Asistente Mecánico', phone: '0414-3829102' };
+    }
+    if (desc.includes('MERWIN') || desc.includes('MARWIN')) {
+      return { name: 'MARWIN DIAZ', contact: 'Jefe de Taller / Peritaje', phone: '0416-8192019' };
+    }
+    if (desc.includes('ASIA')) return { name: 'REPUESTO ASIA PARTS', contact: 'EL JUNQUITO', phone: '0412-6138801' };
+    if (desc.includes('RHINO')) return { name: 'REPUESTO RHINO', contact: 'LOS CHAGUARAMOS', phone: '0424-2374723' };
+    if (desc.includes('TOYOMEN')) return { name: 'TOYOMEN', contact: 'MARIPEREZ', phone: '0414-2189418' };
+    if (desc.includes('FUTUR')) return { name: 'FUTURE·S CARS', contact: 'SABANA GRANDE', phone: '0424-1450832' };
+    if (desc.includes('CABA')) return { name: 'COMERCIALIZADORA  CABA', contact: 'BELLO MONTE', phone: '0412-3994872' };
+    if (desc.includes('ARBOLEDA') || desc.includes('CILICA') || desc.includes('VITARA')) {
+      return { name: 'AUTO REPUESTO LA ARBOLEDA', contact: 'Distribuidor Repuestos', phone: '' };
+    }
+    if (desc.includes('CREOLE') || desc.includes('FERRETERIA')) {
+      return { name: 'FERRETERIA CREOLE 2011', contact: 'Suministros y Herramientas', phone: '' };
+    }
+    if (desc.includes('INTERNET') || desc.includes('AGUA') || desc.includes('ALQUILER')) {
+      return { name: 'SERVICIOS GENERALES', contact: 'Servicios de Oficina/Local', phone: '' };
+    }
+    if (desc.includes('REPUESTO') || desc.includes('SERVICIO') || desc.includes('SILICON') || desc.includes('PICOS') || desc.includes('AA') || desc.includes('ACEITE') || desc.includes('COMPRA')) {
+      return { name: 'REPUESTO ASIA PARTS', contact: 'Distribuidor Repuestos', phone: '' };
+    }
+    return null;
+  };
+
   const list = Array.isArray(data) ? data : [];
   const filteredData = list.filter((item: any) => {
-    return Object.values(item).some(
-      (val) => val && String(val).toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const supplier = resolveSupplierInfo(item);
+    const searchTarget = `${Object.values(item).join(' ')} ${supplier?.name || ''} ${supplier?.contact || ''}`.toLowerCase();
+    return searchTarget.includes(searchTerm.toLowerCase());
   });
 
   const handleOpenNew = () => {
@@ -66,10 +129,10 @@ export default function CuentasPagar() {
             </span>
             <input
               type="text"
-              placeholder="Buscar por descripción..."
+              placeholder="Buscar por proveedor, contacto o descripción..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full sm:w-60 pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm"
+              className="w-full sm:w-72 pl-10 pr-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm"
             />
           </div>
           <button
@@ -88,6 +151,7 @@ export default function CuentasPagar() {
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50/70 text-gray-500 font-bold uppercase text-[11px] tracking-wider">
                 <th className="py-4 px-6 text-left">Fecha</th>
+                <th className="py-4 px-6 text-left">Proveedor / Beneficiario</th>
                 <th className="py-4 px-6 text-left">Descripción</th>
                 <th className="py-4 px-6 text-right">Debe ($)</th>
                 <th className="py-4 px-6 text-right">Haber ($)</th>
@@ -98,48 +162,68 @@ export default function CuentasPagar() {
             <tbody className="divide-y divide-gray-100">
               {filteredData.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-gray-400">
+                  <td colSpan={7} className="py-8 text-center text-gray-400">
                     No se encontraron cuentas por pagar
                   </td>
                 </tr>
               ) : (
-                filteredData.map((row: any) => (
-                  <tr key={row.id || row.ap_id} className="hover:bg-gray-50/70 transition-colors">
-                    <td className="py-4 px-6 text-gray-700 font-medium">
-                      {row.transaction_date ? new Date(row.transaction_date).toLocaleDateString('es-ES') : '—'}
-                    </td>
-                    <td className="py-4 px-6 font-semibold text-secondary">
-                      {row.description || 'Cuenta por Pagar'}
-                    </td>
-                    <td className="py-4 px-6 text-right font-semibold text-green-600">
-                      ${Number(row.debit || 0).toFixed(2)}
-                    </td>
-                    <td className="py-4 px-6 text-right font-semibold text-red-600">
-                      ${Number(row.credit || 0).toFixed(2)}
-                    </td>
-                    <td className="py-4 px-6 text-right font-bold text-secondary">
-                      ${Number(row.balance || 0).toFixed(2)}
-                    </td>
-                    <td className="py-4 px-6 text-center">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <button
-                          onClick={() => handleOpenEdit(row)}
-                          className="p-2 text-gray-500 hover:text-primary hover:bg-blue-50 rounded-lg transition"
-                          title="Editar"
-                        >
-                          <i className="fas fa-edit"></i>
-                        </button>
-                        <button
-                          onClick={() => handleDelete(row.id || row.ap_id)}
-                          className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
-                          title="Eliminar"
-                        >
-                          <i className="fas fa-trash"></i>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                filteredData.map((row: any) => {
+                  const supplierInfo = resolveSupplierInfo(row);
+                  return (
+                    <tr key={row.id || row.ap_id} className="hover:bg-gray-50/70 transition-colors">
+                      <td className="py-4 px-6 text-gray-700 font-medium whitespace-nowrap">
+                        {row.transaction_date ? new Date(row.transaction_date).toLocaleDateString('es-ES') : '—'}
+                      </td>
+                      <td className="py-4 px-6">
+                        {supplierInfo ? (
+                          <div>
+                            <div className="font-bold text-secondary flex items-center gap-1.5">
+                              <i className="fas fa-truck text-primary text-sm"></i>
+                              {supplierInfo.name}
+                            </div>
+                            {supplierInfo.contact && (
+                              <div className="text-xs text-gray-400 font-medium mt-0.5 ml-5">
+                                {supplierInfo.contact}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 italic text-xs">Sin asignar</span>
+                        )}
+                      </td>
+                      <td className="py-4 px-6 font-semibold text-secondary">
+                        {row.description || 'Cuenta por Pagar'}
+                      </td>
+                      <td className="py-4 px-6 text-right font-semibold text-green-600">
+                        ${Number(row.debit || 0).toFixed(2)}
+                      </td>
+                      <td className="py-4 px-6 text-right font-semibold text-red-600">
+                        ${Number(row.credit || 0).toFixed(2)}
+                      </td>
+                      <td className="py-4 px-6 text-right font-bold text-secondary">
+                        ${Number(row.balance || 0).toFixed(2)}
+                      </td>
+                      <td className="py-4 px-6 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => handleOpenEdit(row)}
+                            className="p-2 text-gray-500 hover:text-primary hover:bg-blue-50 rounded-lg transition"
+                            title="Editar"
+                          >
+                            <i className="fas fa-edit"></i>
+                          </button>
+                          <button
+                            onClick={() => handleDelete(row.id || row.ap_id)}
+                            className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                            title="Eliminar"
+                          >
+                            <i className="fas fa-trash"></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

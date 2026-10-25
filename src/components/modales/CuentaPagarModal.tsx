@@ -10,6 +10,87 @@ interface CuentaPagarModalProps {
   item?: any;
 }
 
+const resolveSupplierForAP = (item: any, proveedores?: any[], empleados?: any[]) => {
+  let supplierId = resolveSupplierId(item, proveedores || undefined);
+  let inferredName = item?.supplier_name || item?.suppliers?.[0]?.supplier_name || '';
+
+  // 1. Si no tiene ID pero coincide con nombre de proveedor
+  if (!supplierId && proveedores && proveedores.length > 0) {
+    if (item?.supplier_name) {
+      const matched = proveedores.find((p: any) =>
+        p.supplier_name && p.supplier_name.trim().toUpperCase() === String(item.supplier_name).trim().toUpperCase()
+      );
+      if (matched) {
+        supplierId = matched.id || matched.supplier_id;
+        inferredName = matched.supplier_name;
+      }
+    }
+  }
+
+  // 2. Si no tiene ID de proveedor, chequear si es un empleado por clave foránea o nombre
+  if (!supplierId && empleados && empleados.length > 0) {
+    if (item?.employees_fk_id) {
+      const e = empleados.find((emp: any) => (emp.id || emp.employee_id) === item.employees_fk_id);
+      if (e) {
+        supplierId = e.id || e.employee_id;
+        inferredName = e.employee_name;
+      }
+    }
+    if (!supplierId && item?.supplier_name) {
+      const e = empleados.find((emp: any) =>
+        emp.employee_name && emp.employee_name.trim().toUpperCase() === String(item.supplier_name).trim().toUpperCase()
+      );
+      if (e) {
+        supplierId = e.id || e.employee_id;
+        inferredName = e.employee_name;
+      }
+    }
+  }
+
+  // 3. Fallback inteligente por descripción
+  if (!supplierId && item?.description) {
+    const d = String(item.description).toUpperCase();
+    if (d.includes('WILLIANS') || d.includes('WILLIAN')) inferredName = 'WILLIANS ORTEGA';
+    else if (d.includes('YEISON') || d.includes('JEISON')) inferredName = 'YEISON TORRES';
+    else if (d.includes('ERIK') || d.includes('MUÑOZ') || d.includes('MUÑOIZ')) inferredName = 'ERIK MUÑOZ';
+    else if (d.includes('SAMIR')) inferredName = 'SAMIR EL SOUKI';
+    else if (d.includes('MERWIN') || d.includes('MARWIN')) inferredName = 'MARWIN DIAZ';
+    else if (d.includes('ASIA')) inferredName = 'REPUESTO ASIA PARTS';
+    else if (d.includes('RHINO')) inferredName = 'REPUESTO RHINO';
+    else if (d.includes('TOYOMEN')) inferredName = 'TOYOMEN';
+    else if (d.includes('FUTUR')) inferredName = 'FUTURE·S CARS';
+    else if (d.includes('CABA')) inferredName = 'COMERCIALIZADORA  CABA';
+    else if (d.includes('ARBOLEDA') || d.includes('CILICA') || d.includes('VITARA')) inferredName = 'AUTO REPUESTO LA ARBOLEDA';
+    else if (d.includes('CREOLE') || d.includes('FERRETERIA')) inferredName = 'FERRETERIA CREOLE 2011';
+    else if (d.includes('INTERNET') || d.includes('AGUA') || d.includes('ALQUILER')) inferredName = 'SERVICIOS GENERALES';
+    else if (d.includes('REPUESTO') || d.includes('SERVICIO') || d.includes('SILICON') || d.includes('PICOS') || d.includes('AA') || d.includes('ACEITE') || d.includes('COMPRA')) {
+      inferredName = 'REPUESTO ASIA PARTS';
+    }
+
+    if (inferredName && proveedores) {
+      const found = proveedores.find((p: any) =>
+        p.supplier_name && p.supplier_name.trim().toUpperCase() === inferredName.toUpperCase()
+      );
+      if (found) {
+        supplierId = found.id || found.supplier_id;
+        inferredName = found.supplier_name;
+      }
+    }
+
+    if (!supplierId && inferredName && empleados) {
+      const found = empleados.find((e: any) =>
+        e.employee_name && e.employee_name.trim().toUpperCase() === inferredName.toUpperCase()
+      );
+      if (found) {
+        supplierId = found.id || found.employee_id;
+        inferredName = found.employee_name;
+      }
+    }
+  }
+
+  return { supplierId, name: inferredName };
+};
+
 export default function CuentaPagarModal({ isOpen, onClose, onSuccess, item }: CuentaPagarModalProps) {
   const [formData, setFormData] = useState<any>({
     transaction_date: new Date().toISOString().split('T')[0],
@@ -24,11 +105,14 @@ export default function CuentaPagarModal({ isOpen, onClose, onSuccess, item }: C
   const { data: proveedores } = useGrqlList<any[]>("GestionTallerProd_suppliers", {
     pagination: { page: 1, size: 500 }
   });
+  const { data: empleados } = useGrqlList<any[]>("GestionTallerProd_employees", {
+    pagination: { page: 1, size: 500 }
+  });
 
   useEffect(() => {
     if (isOpen) {
       if (item) {
-        const supplierId = resolveSupplierId(item, proveedores || undefined);
+        const resolved = resolveSupplierForAP(item, proveedores || undefined, empleados || undefined);
 
         const rawTxDate = item.transaction_date || item.created_at || '';
         const txDate = rawTxDate ? String(rawTxDate).replace(' ', 'T').split('T')[0] : new Date().toISOString().split('T')[0];
@@ -42,7 +126,8 @@ export default function CuentaPagarModal({ isOpen, onClose, onSuccess, item }: C
 
         setFormData({
           ...item,
-          suppliers_fk_id: supplierId || item.suppliers_fk_id || '',
+          suppliers_fk_id: resolved.supplierId || item.suppliers_fk_id || (resolved.name ? resolved.name : ''),
+          supplier_name: resolved.name || item.supplier_name || '',
           transaction_date: txDate,
           payment_date: payDate,
           description: item.description || '',
@@ -58,12 +143,13 @@ export default function CuentaPagarModal({ isOpen, onClose, onSuccess, item }: C
           credit: 0,
           balance: 0,
           description: '',
-          suppliers_fk_id: ''
+          suppliers_fk_id: '',
+          supplier_name: ''
         });
       }
       setError(null);
     }
-  }, [isOpen, item, proveedores]);
+  }, [isOpen, item, proveedores, empleados]);
 
   if (!isOpen) return null;
 
@@ -82,15 +168,20 @@ export default function CuentaPagarModal({ isOpen, onClose, onSuccess, item }: C
     setLoading(true);
     setError(null);
     try {
+      const selectedProv = proveedores?.find((s: any) => (s.id || s.supplier_id) === formData.suppliers_fk_id);
+      const selectedEmp = empleados?.find((emp: any) => (emp.id || emp.employee_id) === formData.suppliers_fk_id);
+
       const payload = {
         ...formData,
+        supplier_name: selectedProv?.supplier_name || selectedEmp?.employee_name || formData.supplier_name || '',
         debit: parseFloat(formData.debit || 0),
         credit: parseFloat(formData.credit || 0),
         balance: parseFloat(formData.balance || 0),
       };
 
-      if (item?.id) {
-        await updateEntity("GestionTallerProd_accounts_payable", item.id, payload);
+      const targetId = item?.id || item?.ap_id;
+      if (targetId) {
+        await updateEntity("GestionTallerProd_accounts_payable", targetId, payload);
       } else {
         await createEntity("GestionTallerProd_accounts_payable", payload);
       }
@@ -131,24 +222,49 @@ export default function CuentaPagarModal({ isOpen, onClose, onSuccess, item }: C
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Proveedor *</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Proveedor / Beneficiario *</label>
                 <select
                   required
                   value={formData.suppliers_fk_id || ""}
-                  onChange={e => handleFieldChange("suppliers_fk_id", e.target.value)}
-                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm"
+                  onChange={e => {
+                    const selId = e.target.value;
+                    const selProv = proveedores?.find((s: any) => (s.id || s.supplier_id) === selId);
+                    const selEmp = empleados?.find((emp: any) => (emp.id || emp.employee_id) === selId);
+                    setFormData((prev: any) => ({
+                      ...prev,
+                      suppliers_fk_id: selId,
+                      supplier_name: selProv?.supplier_name || selEmp?.employee_name || prev.supplier_name
+                    }));
+                  }}
+                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm font-semibold"
                 >
-                  <option value="">Seleccionar Proveedor...</option>
-                  {formData.suppliers_fk_id && !proveedores?.some((s: any) => (s.id || s.supplier_id) === formData.suppliers_fk_id) && (
+                  <option value="">Seleccionar Proveedor / Beneficiario...</option>
+
+                  {formData.suppliers_fk_id && 
+                   !proveedores?.some((s: any) => (s.id || s.supplier_id) === formData.suppliers_fk_id) && 
+                   !empleados?.some((emp: any) => (emp.id || emp.employee_id) === formData.suppliers_fk_id) && (
                     <option value={formData.suppliers_fk_id}>
-                      {item?.supplier_name || item?.suppliers?.[0]?.supplier_name || 'Proveedor actual'} ({formData.suppliers_fk_id})
+                      {formData.supplier_name || item?.supplier_name || 'Proveedor seleccionado'} ({formData.suppliers_fk_id})
                     </option>
                   )}
-                  {proveedores?.map((s: any) => (
-                    <option key={s.id || s.supplier_id} value={s.id || s.supplier_id}>
-                      {s.supplier_name}
-                    </option>
-                  ))}
+
+                  <optgroup label="Proveedores de Repuestos y Servicios">
+                    {proveedores?.map((s: any) => (
+                      <option key={s.id || s.supplier_id} value={s.id || s.supplier_id}>
+                        {s.supplier_name} {s.contact_person ? `(${s.contact_person})` : ''}
+                      </option>
+                    ))}
+                  </optgroup>
+
+                  {empleados && empleados.length > 0 && (
+                    <optgroup label="Personal / Pagos y Comisiones Internas">
+                      {empleados?.map((emp: any) => (
+                        <option key={emp.id || emp.employee_id} value={emp.id || emp.employee_id}>
+                          {emp.employee_name} ({emp.position || 'Mecánico'})
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
               </div>
 
