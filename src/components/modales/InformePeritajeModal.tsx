@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect } from "react";
 import { resolveVehicleId, resolveClientId, findClientForVehicle } from "../../utils/entityHelpers";
 import { useGrqlList } from "../../hooks/use-grql";
 import { downloadInspectionReportPdf } from "../../utils/pdfGenerator";
+import { LOGO_TALLER_360_DATA_URL } from "../../utils/logoBase64";
 import type { InspectionAnalysis } from "../../types/entities";
 
 interface InformePeritajeModalProps {
@@ -265,7 +266,7 @@ export default function InformePeritajeModal({
           <div className="border-b-2 border-slate-900 pb-3 print:pb-2 flex items-start justify-between print-avoid-break">
             <div className="flex items-center gap-3 sm:gap-4">
               <div className="w-14 h-14 print:w-11 print:h-11 bg-white border border-slate-200 shadow-sm rounded-xl flex items-center justify-center p-1.5 shrink-0">
-                <img src="/logo-taller-360.png" alt="Logo Taller 360" className="w-full h-full object-contain" />
+                <img src={LOGO_TALLER_360_DATA_URL} alt="Logo Taller 360" className="w-full h-full object-contain" />
               </div>
               <div>
                 <h1 className="text-xl print:text-base font-black tracking-tight text-slate-900">

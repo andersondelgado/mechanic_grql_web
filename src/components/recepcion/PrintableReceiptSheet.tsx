@@ -1,6 +1,7 @@
 import React from 'react';
 import type { VehicleReceipt, ChecklistItem, DamagePoint } from '../../types/entities';
 import { downloadReceiptPdf } from '../../utils/pdfGenerator';
+import { LOGO_TALLER_360_DATA_URL } from '../../utils/logoBase64';
 
 interface PrintableReceiptSheetProps {
   receipt: VehicleReceipt;
@@ -104,7 +105,7 @@ export const PrintableReceiptSheet: React.FC<PrintableReceiptSheetProps> = ({ re
           <div className="border-b-2 border-slate-900 pb-3 flex items-start justify-between">
             <div className="flex items-center gap-4">
               <div className="w-14 h-14 bg-white border border-slate-200 shadow-sm rounded-xl flex items-center justify-center p-1.5 shrink-0">
-                <img src="/logo-taller-360.png" alt="Logo Taller 360" className="w-full h-full object-contain" />
+                <img src={LOGO_TALLER_360_DATA_URL} alt="Logo Taller 360" className="w-full h-full object-contain" />
               </div>
               <div>
                 <h1 className="text-xl font-black tracking-tight text-slate-900">
