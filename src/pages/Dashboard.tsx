@@ -141,11 +141,11 @@ export default function Dashboard() {
         <div className="fixed inset-0 z-40 lg:hidden" onClick={() => setSidebarOpen(false)}>
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
           <div className="absolute inset-y-0 left-0 w-72 bg-secondary text-white shadow-xl overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center gap-3 p-5 border-b border-gray-700">
-              <i className="fas fa-car-side text-2xl text-primary"></i>
+            <div className="flex items-center gap-3 p-4 border-b border-gray-700 bg-secondary/80">
+              <img src="/logo-taller-360.png" alt="Logo Taller 360" className="w-10 h-10 object-contain rounded-xl bg-white/10 p-1 shadow-sm border border-white/10" />
               <div>
-                <h2 className="font-bold text-xl">Taller 360</h2>
-                <p className="text-xs text-gray-400">Menú</p>
+                <h2 className="font-bold text-lg leading-tight">Taller 360</h2>
+                <p className="text-xs text-gray-400">Menú Principal</p>
               </div>
             </div>
             <nav className="p-2 space-y-1">
@@ -192,11 +192,11 @@ export default function Dashboard() {
 
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 lg:z-30 bg-secondary text-white lg:overflow-y-auto border-r border-gray-800">
-        <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-700">
-          <i className="fas fa-car-side text-2xl text-primary"></i>
+        <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-700 bg-secondary/80">
+          <img src="/logo-taller-360.png" alt="Logo Taller 360" className="w-11 h-11 object-contain rounded-xl bg-white/10 p-1 shadow-sm border border-white/10" />
           <div>
-            <h1 className="font-bold text-lg leading-tight">Taller Integral 360</h1>
-            <p className="text-xs text-gray-400">Urbaez Motors 2030 C.A.</p>
+            <h1 className="font-bold text-base leading-tight">Taller Integral 360</h1>
+            <p className="text-[11px] text-gray-400">Urbaez Motors 2030 C.A.</p>
           </div>
         </div>
         <nav className="flex-1 overflow-y-auto py-4">

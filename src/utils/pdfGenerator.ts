@@ -1,5 +1,17 @@
+import { LOGO_TALLER_360_BASE64 } from './logoBase64';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import type { VehicleReceipt, ChecklistItem, DamagePoint } from '../types/entities';
+
+
+function base64ToUint8Array(base64: string): Uint8Array {
+  const binaryString = atob(base64.replace(/\s/g, ''));
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
 
 export async function downloadReceiptPdf(receipt: VehicleReceipt): Promise<void> {
   const pdfDoc = await PDFDocument.create();
@@ -22,6 +34,15 @@ export async function downloadReceiptPdf(receipt: VehicleReceipt): Promise<void>
   const page1 = pdfDoc.addPage([612, 792]);
   const { width, height } = page1.getSize();
 
+  // Embed Oficial Logo from Base64
+  let embeddedLogo: any = null;
+  try {
+    const logoBytes = base64ToUint8Array(LOGO_TALLER_360_BASE64);
+    embeddedLogo = await pdfDoc.embedPng(logoBytes);
+  } catch (logoErr) {
+    console.warn('No se pudo incrustar el logo en el PDF:', logoErr);
+  }
+
   // Banner Superior
   page1.drawRectangle({
     x: 30,
@@ -31,20 +52,47 @@ export async function downloadReceiptPdf(receipt: VehicleReceipt): Promise<void>
     color: rgb(0.08, 0.12, 0.18),
   });
 
+  if (embeddedLogo) {
+    // Fondo blanco contenedor para resaltar el logo
+    page1.drawRectangle({
+      x: 40,
+      y: height - 80,
+      width: 50,
+      height: 50,
+      color: rgb(1, 1, 1),
+    });
+    page1.drawImage(embeddedLogo, {
+      x: 42,
+      y: height - 78,
+      width: 46,
+      height: 46,
+    });
+  }
+
+  const textStartX = embeddedLogo ? 100 : 45;
+
   page1.drawText('TALLER INTEGRALE$ 360 GARAGE C.A.', {
-    x: 45,
-    y: height - 50,
-    size: 14,
+    x: textStartX,
+    y: height - 48,
+    size: 13,
     font: helveticaBold,
     color: rgb(1, 1, 1),
   });
 
   page1.drawText('MECÁNICA GENERAL • LATONERÍA Y PINTURA • DIAGNÓSTICO', {
-    x: 45,
-    y: height - 68,
-    size: 8,
+    x: textStartX,
+    y: height - 64,
+    size: 7.5,
     font: helvetica,
     color: rgb(0.7, 0.8, 0.9),
+  });
+
+  page1.drawText('RIF: J-50123456-7 • Telf: (0212) 555-0360 • Caracas, Venezuela', {
+    x: textStartX,
+    y: height - 76,
+    size: 7,
+    font: helvetica,
+    color: rgb(0.6, 0.7, 0.8),
   });
 
   page1.drawText(`N° ${receiptNum}`, {
@@ -385,6 +433,15 @@ export async function downloadInspectionReportPdf(params: InspectionReportPdfPar
   const page = pdfDoc.addPage([612, 792]);
   const { width, height } = page.getSize();
 
+  // Embed Oficial Logo from Base64
+  let embeddedLogo: any = null;
+  try {
+    const logoBytes = base64ToUint8Array(LOGO_TALLER_360_BASE64);
+    embeddedLogo = await pdfDoc.embedPng(logoBytes);
+  } catch (logoErr) {
+    console.warn('No se pudo incrustar el logo en el informe de peritaje:', logoErr);
+  }
+
   // 1. Banner Superior
   page.drawRectangle({
     x: 30,
@@ -394,20 +451,46 @@ export async function downloadInspectionReportPdf(params: InspectionReportPdfPar
     color: rgb(0.08, 0.12, 0.18),
   });
 
+  if (embeddedLogo) {
+    page.drawRectangle({
+      x: 40,
+      y: height - 80,
+      width: 50,
+      height: 50,
+      color: rgb(1, 1, 1),
+    });
+    page.drawImage(embeddedLogo, {
+      x: 42,
+      y: height - 78,
+      width: 46,
+      height: 46,
+    });
+  }
+
+  const textStartX = embeddedLogo ? 100 : 45;
+
   page.drawText('TALLER INTEGRALE$ 360 GARAGE C.A.', {
-    x: 45,
-    y: height - 50,
-    size: 14,
+    x: textStartX,
+    y: height - 48,
+    size: 13,
     font: helveticaBold,
     color: rgb(1, 1, 1),
   });
 
   page.drawText('PERITAJE TÉCNICO VEHICULAR • EVALUACIÓN CON IA GEMINI MULTIMODAL', {
-    x: 45,
-    y: height - 68,
-    size: 8,
+    x: textStartX,
+    y: height - 64,
+    size: 7.5,
     font: helvetica,
     color: rgb(0.7, 0.8, 0.9),
+  });
+
+  page.drawText('RIF: J-50123456-7 • Telf: (0212) 555-0360 • Caracas, Venezuela', {
+    x: textStartX,
+    y: height - 76,
+    size: 7,
+    font: helvetica,
+    color: rgb(0.6, 0.7, 0.8),
   });
 
   page.drawText(`DICTAMEN N° ${peritajeCode}`, {
