@@ -270,7 +270,7 @@ export default function InformePeritajeModal({
               </div>
               <div>
                 <h1 className="text-xl print:text-base font-black tracking-tight text-slate-900">
-                  TALLER INTEGRALE$ 360 GARAGE C.A.
+                  TALLER INTEGRAL 360 GARAGE C.A.
                 </h1>
                 <p className="text-xs print:text-[10px] text-slate-600 font-medium uppercase tracking-wider">
                   Mecánica General • Latonería y Pintura • Peritaje Computarizado

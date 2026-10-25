@@ -71,7 +71,7 @@ export async function downloadReceiptPdf(receipt: VehicleReceipt): Promise<void>
 
   const textStartX = embeddedLogo ? 100 : 45;
 
-  page1.drawText('TALLER INTEGRALE$ 360 GARAGE C.A.', {
+  page1.drawText('TALLER INTEGRAL 360 GARAGE C.A.', {
     x: textStartX,
     y: height - 48,
     size: 13,
@@ -469,7 +469,7 @@ export async function downloadInspectionReportPdf(params: InspectionReportPdfPar
 
   const textStartX = embeddedLogo ? 100 : 45;
 
-  page.drawText('TALLER INTEGRALE$ 360 GARAGE C.A.', {
+  page.drawText('TALLER INTEGRAL 360 GARAGE C.A.', {
     x: textStartX,
     y: height - 48,
     size: 13,

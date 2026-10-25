@@ -109,7 +109,7 @@ export const PrintableReceiptSheet: React.FC<PrintableReceiptSheetProps> = ({ re
               </div>
               <div>
                 <h1 className="text-xl font-black tracking-tight text-slate-900">
-                  TALLER INTEGRALE$ 360 GARAGE C.A.
+                  TALLER INTEGRAL 360 GARAGE C.A.
                 </h1>
                 <p className="text-xs text-slate-600 font-medium uppercase tracking-wider">
                   Mecánica General • Latonería y Pintura • Diagnóstico Computarizado
