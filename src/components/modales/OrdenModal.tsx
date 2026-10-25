@@ -34,30 +34,64 @@ export default function OrdenModal({ isOpen, onClose, onSuccess, orden }: OrdenM
   useEffect(() => {
     if (isOpen) {
       if (orden) {
-        const clientId = resolveClientId(orden, clientes || undefined);
-        const vehicleId = resolveVehicleId(orden, vehiculos || undefined);
+        let clientId = resolveClientId(orden, clientes || undefined, vehiculos || undefined);
+        let vehicleId = resolveVehicleId(orden, vehiculos || undefined);
+
+        // Si clientId no se encontró directamente, intentar inferirlo del vehículo
+        if (!clientId && vehicleId && vehiculos) {
+          const veh = vehiculos.find((v: any) => (v.id || v.vehicle_id || v._id) === vehicleId);
+          if (veh) {
+            const assoc = findClientForVehicle(veh, clientes || undefined);
+            if (assoc) {
+              clientId = assoc.id || assoc.client_id || assoc._id;
+            } else if (veh.clients_fk_id) {
+              const raw = veh.clients_fk_id;
+              clientId = Array.isArray(raw) ? (raw[0]?.id || raw[0]) : (typeof raw === 'object' ? raw.id : raw);
+            }
+          }
+        }
+
+        // Si vehicleId no se encontró pero clientId sí, intentar asociar el primer vehículo del cliente
+        if (!vehicleId && clientId && vehiculos) {
+          const clientVehs = getVehiclesForClient(clientId, vehiculos, clientes || undefined);
+          if (clientVehs.length > 0) {
+            vehicleId = clientVehs[0].id || clientVehs[0].vehicle_id || clientVehs[0]._id;
+          }
+        }
+
+        const clientObj = clientes?.find((c: any) => (c.id || c.client_id || c._id) === (clientId || orden.clients_fk_id));
+        const vehicleObj = vehiculos?.find((v: any) => (v.id || v.vehicle_id || v._id) === (vehicleId || orden.vehicles_fk_id));
 
         const rawDate = orden.entry_date || orden.order_date || orden.created_at || '';
         const entryDate = rawDate ? String(rawDate).replace(' ', 'T').split('T')[0] : new Date().toISOString().split('T')[0];
 
         const totalCost = orden.total_cost ?? orden.estimated_cost ?? orden.cost ?? 0;
-        const description = orden.description || orden.repair_details || orden.notes || '';
+        const description = orden.description || orden.work_performed || orden.repair_details || orden.notes || '';
 
         setFormData((prev: any) => ({
           ...orden,
-          clients_fk_id: clientId || prev.clients_fk_id || '',
-          vehicles_fk_id: vehicleId || prev.vehicles_fk_id || '',
+          clients_fk_id: clientId || orden.clients_fk_id || prev.clients_fk_id || '',
+          vehicles_fk_id: vehicleId || orden.vehicles_fk_id || prev.vehicles_fk_id || '',
+          client_name: clientObj?.client_name || orden.client_name || '',
+          tax_id: clientObj?.tax_id || orden.tax_id || '',
+          brand: vehicleObj?.brand || orden.brand || '',
+          model: vehicleObj?.model || orden.model || '',
+          license_plate: vehicleObj?.license_plate || vehicleObj?.plate || orden.license_plate || '',
           entry_date: entryDate,
+          order_date: orden.order_date || entryDate,
           status: orden.status || 'pendiente',
           total_cost: totalCost,
-          description: description
+          description: description,
+          work_performed: description
         }));
       } else {
         setFormData({
           status: 'pendiente',
           entry_date: new Date().toISOString().split('T')[0],
+          order_date: new Date().toISOString().split('T')[0],
           total_cost: 0,
-          description: ''
+          description: '',
+          work_performed: ''
         });
       }
       setError(null);
@@ -75,7 +109,12 @@ export default function OrdenModal({ isOpen, onClose, onSuccess, orden }: OrdenM
     const clientVehiclesList = getVehiclesForClient(client, vehiculos || undefined);
 
     setFormData((prev: any) => {
-      const updated = { ...prev, clients_fk_id: clientId };
+      const updated = {
+        ...prev,
+        clients_fk_id: clientId,
+        client_name: client?.client_name || prev.client_name || '',
+        tax_id: client?.tax_id || prev.tax_id || ''
+      };
       const currentIsOfClient = clientVehiclesList.some(
         (v: any) => (v.id || v.vehicle_id || v._id) === prev.vehicles_fk_id
       );
@@ -87,8 +126,9 @@ export default function OrdenModal({ isOpen, onClose, onSuccess, orden }: OrdenM
       if (targetVehicle) {
         const vId = targetVehicle.id || targetVehicle.vehicle_id || targetVehicle._id;
         updated.vehicles_fk_id = vId;
-      } else {
-        updated.vehicles_fk_id = '';
+        updated.license_plate = targetVehicle.license_plate || targetVehicle.plate || prev.license_plate || '';
+        updated.brand = targetVehicle.brand || prev.brand || '';
+        updated.model = targetVehicle.model || prev.model || '';
       }
       return updated;
     });
@@ -98,13 +138,31 @@ export default function OrdenModal({ isOpen, onClose, onSuccess, orden }: OrdenM
     const vehicle = vehiculos?.find((v: any) => (v.id || v.vehicle_id || v._id) === vehicleId);
 
     setFormData((prev: any) => {
-      const updated = { ...prev, vehicles_fk_id: vehicleId };
+      const updated = {
+        ...prev,
+        vehicles_fk_id: vehicleId,
+        license_plate: vehicle?.license_plate || vehicle?.plate || prev.license_plate || '',
+        brand: vehicle?.brand || prev.brand || '',
+        model: vehicle?.model || prev.model || '',
+        color: vehicle?.color || prev.color || ''
+      };
       if (vehicle) {
         const associatedClient = findClientForVehicle(vehicle, clientes || undefined);
         if (associatedClient) {
           const cId = associatedClient.id || associatedClient.client_id || associatedClient._id;
-          if (!updated.clients_fk_id || updated.clients_fk_id !== cId) {
+          updated.clients_fk_id = cId;
+          updated.client_name = associatedClient.client_name || prev.client_name || '';
+          updated.tax_id = associatedClient.tax_id || prev.tax_id || '';
+        } else if (vehicle.clients_fk_id) {
+          const rawFk = vehicle.clients_fk_id;
+          const cId = Array.isArray(rawFk) ? (rawFk[0]?.id || rawFk[0]) : (typeof rawFk === 'object' ? rawFk.id : rawFk);
+          if (cId) {
             updated.clients_fk_id = cId;
+            const cObj = clientes?.find((c: any) => (c.id || c.client_id || c._id) === cId);
+            if (cObj) {
+              updated.client_name = cObj.client_name || '';
+              updated.tax_id = cObj.tax_id || '';
+            }
           }
         }
       }
@@ -117,10 +175,30 @@ export default function OrdenModal({ isOpen, onClose, onSuccess, orden }: OrdenM
     setLoading(true);
     setError(null);
     try {
+      const selectedClient = clientes?.find((c: any) => (c.id || c.client_id || c._id) === formData.clients_fk_id);
+      const selectedVehicle = vehiculos?.find((v: any) => (v.id || v.vehicle_id || v._id) === formData.vehicles_fk_id);
+
+      const payload = {
+        ...formData,
+        clients_fk_id: formData.clients_fk_id || undefined,
+        vehicles_fk_id: formData.vehicles_fk_id || undefined,
+        client_name: selectedClient?.client_name || formData.client_name || orden?.client_name || '',
+        tax_id: selectedClient?.tax_id || formData.tax_id || orden?.tax_id || '',
+        brand: selectedVehicle?.brand || formData.brand || orden?.brand || '',
+        model: selectedVehicle?.model || formData.model || orden?.model || '',
+        license_plate: selectedVehicle?.license_plate || selectedVehicle?.plate || formData.license_plate || orden?.license_plate || '',
+        order_date: formData.entry_date || formData.order_date || new Date().toISOString(),
+        entry_date: formData.entry_date || formData.order_date || new Date().toISOString().split('T')[0],
+        work_performed: formData.description || formData.work_performed || '',
+        description: formData.description || formData.work_performed || '',
+        total_cost: Number(formData.total_cost || 0),
+        status: formData.status || 'pendiente'
+      };
+
       if (orden?.id) {
-        await updateEntity("GestionTallerProd_body_shop_orders", orden.id, formData);
+        await updateEntity("GestionTallerProd_body_shop_orders", orden.id, payload);
       } else {
-        await createEntity("GestionTallerProd_body_shop_orders", formData);
+        await createEntity("GestionTallerProd_body_shop_orders", payload);
       }
       onSuccess();
       onClose();
@@ -182,7 +260,7 @@ export default function OrdenModal({ isOpen, onClose, onSuccess, orden }: OrdenM
                   <option value="">Seleccionar cliente...</option>
                   {formData.clients_fk_id && !clientes?.some((c: any) => (c.id || c.client_id || c._id) === formData.clients_fk_id) && (
                     <option value={formData.clients_fk_id}>
-                      {orden?.client_name || 'Cliente actual'} {orden?.tax_id ? `(${orden?.tax_id})` : ''}
+                      {formData.client_name || orden?.client_name || 'Cliente actual'} {formData.tax_id || orden?.tax_id ? `(${formData.tax_id || orden?.tax_id})` : ''}
                     </option>
                   )}
                   {clientes?.map((c: any) => {
@@ -219,7 +297,7 @@ export default function OrdenModal({ isOpen, onClose, onSuccess, orden }: OrdenM
                   </option>
                   {formData.vehicles_fk_id && !vehiculos?.some((v: any) => (v.id || v.vehicle_id || v._id) === formData.vehicles_fk_id) && (
                     <option value={formData.vehicles_fk_id}>
-                      {orden?.license_plate || orden?.vehicles?.[0]?.license_plate || 'Vehículo actual'} - {orden?.brand || ''} {orden?.model || ''}
+                      {formData.license_plate || orden?.license_plate || orden?.vehicles?.[0]?.license_plate || 'Vehículo actual'} - {formData.brand || orden?.brand || ''} {formData.model || orden?.model || ''}
                     </option>
                   )}
                   {clientVehicles.length > 0 && (

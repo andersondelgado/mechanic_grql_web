@@ -53,13 +53,26 @@ export function resolveVehicleId(item: any, vehiculosList?: any[]): string {
     }
   }
 
+  // 5. Fallback adicional: buscar si el texto de trabajo/descripción menciona alguna placa registrada
+  const textContent = `${item.work_performed || ''} ${item.description || ''} ${item.repair_details || ''} ${item.notes || ''}`.toUpperCase();
+  if (textContent && vehiculosList && vehiculosList.length > 0) {
+    const foundInText = vehiculosList.find((v: any) => {
+      const vPlate = v.license_plate ? String(v.license_plate).trim().toUpperCase() : '';
+      return vPlate && vPlate.length >= 4 && textContent.includes(vPlate);
+    });
+    if (foundInText) {
+      return foundInText.id || foundInText.vehicle_id || foundInText._id || '';
+    }
+  }
+
   return typeof vId === 'string' ? vId : (vId ? String(vId) : '');
 }
 
 /**
- * Resuelve el identificador de un cliente de forma robusta a partir de un registro y la lista de clientes.
+ * Resuelve el identificador de un cliente de forma robusta a partir de un registro,
+ * la lista de clientes y opcionalmente la lista de vehículos asociados.
  */
-export function resolveClientId(item: any, clientesList?: any[]): string {
+export function resolveClientId(item: any, clientesList?: any[], vehiculosList?: any[]): string {
   if (!item) return '';
 
   let cId = item.clients_fk_id;
@@ -77,6 +90,18 @@ export function resolveClientId(item: any, clientesList?: any[]): string {
     cId = item.client.id || item.client.client_id || item.client._id;
   }
 
+  // Si vehicles viene poblado con relación o clave a cliente
+  if (!cId && Array.isArray(item.vehicles) && item.vehicles.length > 0) {
+    const vFirst = item.vehicles[0];
+    if (vFirst?.clients_fk_id) {
+      const raw = vFirst.clients_fk_id;
+      cId = Array.isArray(raw) ? (raw[0]?.id || raw[0]) : (typeof raw === 'object' ? raw.id : raw);
+    } else if (Array.isArray(vFirst?.clients) && vFirst.clients.length > 0) {
+      const cFirst = vFirst.clients[0];
+      cId = typeof cFirst === 'object' ? (cFirst?.id || cFirst?.client_id || cFirst?._id) : cFirst;
+    }
+  }
+
   if (cId && clientesList && clientesList.length > 0) {
     const strId = String(cId);
     const found = clientesList.find((c: any) =>
@@ -90,7 +115,7 @@ export function resolveClientId(item: any, clientesList?: any[]): string {
   }
 
   // Fallback por tax_id / cédula / RIF
-  const targetTaxId = item.tax_id || item.owner_tax_id || item.clients?.[0]?.tax_id;
+  const targetTaxId = item.tax_id || item.owner_tax_id || item.clients?.[0]?.tax_id || item.vehicles?.[0]?.owner_tax_id;
   if (targetTaxId && clientesList && clientesList.length > 0) {
     const cleanTax = String(targetTaxId).trim().toUpperCase();
     const found = clientesList.find((c: any) =>
@@ -102,7 +127,7 @@ export function resolveClientId(item: any, clientesList?: any[]): string {
   }
 
   // Fallback por nombre de cliente
-  const targetName = item.client_name || item.owner_name || item.clients?.[0]?.client_name;
+  const targetName = item.client_name || item.owner_name || item.clients?.[0]?.client_name || item.vehicles?.[0]?.owner_name;
   if (targetName && clientesList && clientesList.length > 0) {
     const cleanName = String(targetName).trim().toLowerCase();
     const found = clientesList.find((c: any) =>
@@ -110,6 +135,32 @@ export function resolveClientId(item: any, clientesList?: any[]): string {
     );
     if (found) {
       return found.id || found.client_id || found._id || '';
+    }
+  }
+
+  // Fallback: resolver cliente a través del vehículo en la lista de vehículos
+  if (vehiculosList && vehiculosList.length > 0) {
+    const matchedVehicleId = resolveVehicleId(item, vehiculosList);
+    if (matchedVehicleId) {
+      const strVId = String(matchedVehicleId);
+      const veh = vehiculosList.find((v: any) =>
+        (v.id && String(v.id) === strVId) ||
+        (v.vehicle_id && String(v.vehicle_id) === strVId) ||
+        (v._id && String(v._id) === strVId)
+      );
+      if (veh) {
+        if (clientesList && clientesList.length > 0) {
+          const assoc = findClientForVehicle(veh, clientesList);
+          if (assoc) {
+            return assoc.id || assoc.client_id || assoc._id || '';
+          }
+        }
+        if (veh.clients_fk_id) {
+          const rawFk = veh.clients_fk_id;
+          const vFk = Array.isArray(rawFk) ? (rawFk[0]?.id || rawFk[0]) : (typeof rawFk === 'object' ? rawFk.id : rawFk);
+          if (vFk) return String(vFk);
+        }
+      }
     }
   }
 

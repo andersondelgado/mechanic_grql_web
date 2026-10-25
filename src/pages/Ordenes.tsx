@@ -1,11 +1,18 @@
 import React, { useState } from "react";
 import { useGrqlList } from "../hooks/use-grql";
 import OrdenModal from "../components/modales/OrdenModal";
+import { resolveClientId, resolveVehicleId } from "../utils/entityHelpers";
 
 export default function Ordenes() {
   const [page, setPage] = useState(1);
   const { data, meta, loading, error, remove, refetch } = useGrqlList<any[]>("GestionTallerProd_body_shop_orders", {
     pagination: { page, size: 10 }
+  });
+  const { data: clientes } = useGrqlList<any[]>("GestionTallerProd_clients", {
+    pagination: { page: 1, size: 500 }
+  });
+  const { data: vehiculos } = useGrqlList<any[]>("GestionTallerProd_vehicles", {
+    pagination: { page: 1, size: 500 }
   });
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -40,10 +47,12 @@ export default function Ordenes() {
 
   const list = Array.isArray(data) ? data : [];
   const filteredData = list.filter((item: any) => {
-    const client = item.clients?.[0];
+    const resolvedClientId = resolveClientId(item, clientes || undefined, vehiculos || undefined);
+    const resolvedVehicleId = resolveVehicleId(item, vehiculos || undefined);
+    const client = item.clients?.[0] || clientes?.find((c: any) => (c.id || c.client_id || c._id) === resolvedClientId);
     const clientName = client?.client_name || item.client_name || item.owner_name || '';
     const taxId = client?.tax_id || item.tax_id || '';
-    const vehicle = item.vehicles?.[0];
+    const vehicle = item.vehicles?.[0] || vehiculos?.find((v: any) => (v.id || v.vehicle_id || v._id) === resolvedVehicleId);
     const plate = vehicle?.license_plate || item.license_plate || '';
     const brandModel = vehicle ? `${vehicle.brand || ''} ${vehicle.model || ''}` : `${item.brand || ''} ${item.model || ''}`;
     const orderNum = item.order_number || '';
@@ -67,7 +76,21 @@ export default function Ordenes() {
   };
 
   const handleOpenEdit = (orden: any) => {
-    setSelectedOrden(orden);
+    const resolvedClientId = resolveClientId(orden, clientes || undefined, vehiculos || undefined);
+    const resolvedVehicleId = resolveVehicleId(orden, vehiculos || undefined);
+    const client = orden.clients?.[0] || clientes?.find((c: any) => (c.id || c.client_id || c._id) === resolvedClientId);
+    const vehicle = orden.vehicles?.[0] || vehiculos?.find((v: any) => (v.id || v.vehicle_id || v._id) === resolvedVehicleId);
+
+    setSelectedOrden({
+      ...orden,
+      clients_fk_id: resolvedClientId || orden.clients_fk_id,
+      vehicles_fk_id: resolvedVehicleId || orden.vehicles_fk_id,
+      client_name: client?.client_name || orden.client_name,
+      tax_id: client?.tax_id || orden.tax_id,
+      license_plate: vehicle?.license_plate || orden.license_plate,
+      brand: vehicle?.brand || orden.brand,
+      model: vehicle?.model || orden.model,
+    });
     setIsModalOpen(true);
   };
 
@@ -133,10 +156,12 @@ export default function Ordenes() {
                   </tr>
                 ) : (
                   filteredData.map((item: any) => {
-                    const client = item.clients?.[0];
+                    const resolvedClientId = resolveClientId(item, clientes || undefined, vehiculos || undefined);
+                    const resolvedVehicleId = resolveVehicleId(item, vehiculos || undefined);
+                    const client = item.clients?.[0] || clientes?.find((c: any) => (c.id || c.client_id || c._id) === resolvedClientId);
                     const clientName = client?.client_name || item.client_name || item.owner_name || "-";
                     const taxId = client?.tax_id || item.tax_id || "";
-                    const vehicle = item.vehicles?.[0];
+                    const vehicle = item.vehicles?.[0] || vehiculos?.find((v: any) => (v.id || v.vehicle_id || v._id) === resolvedVehicleId);
                     const plate = vehicle?.license_plate || item.license_plate;
                     const vehicleDesc = vehicle
                       ? `${vehicle.brand || ""} ${vehicle.model || ""}`.trim()
