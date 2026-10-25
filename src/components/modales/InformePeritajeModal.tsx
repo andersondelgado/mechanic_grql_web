@@ -495,6 +495,11 @@ export default function InformePeritajeModal({
           <div className="pt-6 print:pt-4 border-t-2 border-slate-900 grid grid-cols-2 gap-8 print:gap-6 text-center text-xs print-avoid-break">
             <div>
               <div className="border-b border-slate-400 pb-8 print:pb-5 mb-1.5 print:mb-1">
+                {peritaje.client_signature && (
+                  <div className="h-12 flex items-center justify-center -mt-2 mb-1">
+                    <img src={peritaje.client_signature} alt="Firma Cliente" className="max-h-full object-contain" />
+                  </div>
+                )}
                 <p className="font-bold text-slate-900 text-xs print:text-[11px]">
                   {inspector ? `${inspector.first_name || ''} ${inspector.last_name || ''}`.trim() : 'Técnico Perito Especialista'}
                 </p>

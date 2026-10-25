@@ -269,6 +269,8 @@ export interface InspectionCard extends BaseEntity {
   check_yes?: boolean;
   check_no?: boolean;
   observations?: string;
+  client_signature?: string;
+  client_signature_date?: string;
 }
 
 export interface BodyShopMaterial extends BaseEntity {

@@ -688,6 +688,44 @@ export async function downloadInspectionReportPdf(params: InspectionReportPdfPar
   page.drawText('Firma del Perito / Inspector', { x: 50, y: 95, size: 6.5, font: helvetica, color: rgb(0.5, 0.5, 0.5) });
 
   // Firma Cliente
+  const clientSigRaw = peritaje?.client_signature || peritaje?.signature_client || peritaje?.firma_cliente;
+  if (clientSigRaw) {
+    try {
+      const clean = String(clientSigRaw).replace(/^data:image\/\w+;base64,/, '').trim();
+      let imageBytes: Uint8Array;
+      const g = typeof window !== 'undefined' ? (window as any) : (globalThis as any);
+      if (typeof g.Buffer !== 'undefined') {
+        imageBytes = g.Buffer.from(clean, 'base64');
+      } else {
+        const binary = atob(clean);
+        imageBytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+          imageBytes[i] = binary.charCodeAt(i);
+        }
+      }
+      if (imageBytes && imageBytes.length > 0) {
+        let sigImg: any = null;
+        try {
+          sigImg = await pdfDoc.embedPng(imageBytes);
+        } catch {
+          try { sigImg = await pdfDoc.embedJpg(imageBytes); } catch {}
+        }
+        if (sigImg) {
+          const maxW = 180;
+          const maxH = 40;
+          const scale = Math.min(maxW / sigImg.width, maxH / sigImg.height, 1);
+          const w = sigImg.width * scale;
+          const h = sigImg.height * scale;
+          const x = 330 + (210 - w) / 2;
+          const y = 138;
+          page.drawImage(sigImg, { x, y, width: w, height: h });
+        }
+      }
+    } catch (e) {
+      console.warn('No se pudo incrustar firma en PDF:', e);
+    }
+  }
+
   page.drawLine({ start: { x: 330, y: 135 }, end: { x: 540, y: 135 }, color: rgb(0.7, 0.7, 0.7), thickness: 1 });
   const clientName = cleanLatin1(client?.client_name || client?.name || 'Propietario / Cliente');
   page.drawText(clientName, { x: 330, y: 122, size: 8, font: helveticaBold });
