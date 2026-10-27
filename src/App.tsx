@@ -28,13 +28,16 @@ import Comunicaciones from "./pages/Comunicaciones";
 import Reportes from "./pages/Reportes";
 import Backup from "./pages/Backup";
 import Usuarios from "./pages/Usuarios";
+import MetodosPago from "./pages/MetodosPago";
+import { CurrencyProvider } from "./context/CurrencyContext";
 
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <Routes>
-          <Route path="/login" element={<Login />} />
+      <CurrencyProvider>
+        <Router>
+          <Routes>
+            <Route path="/login" element={<Login />} />
           <Route
             path="/"
             element={
@@ -59,6 +62,9 @@ function App() {
 
             {/* Finanzas */}
             <Route path="transacciones" element={<Transacciones />} />
+            <Route path="metodos-pago" element={<MetodosPago />} />
+            <Route path="metodos_pago" element={<MetodosPago />} />
+            <Route path="pagos" element={<MetodosPago />} />
             <Route path="cuentas-cobrar" element={<CuentasCobrar />} />
             <Route path="cuentas_cobrar" element={<CuentasCobrar />} />
             <Route path="cuentas-pagar" element={<CuentasPagar />} />
@@ -87,6 +93,7 @@ function App() {
           </Route>
         </Routes>
       </Router>
+      </CurrencyProvider>
     </AuthProvider>
   );
 }

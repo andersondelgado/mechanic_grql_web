@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/use-auth";
 import GeminiCopilotDrawer from "../components/ai/GeminiCopilotDrawer";
+import CurrencySelector from "../components/currency/CurrencySelector";
 import { LOGO_TALLER_360_DATA_URL } from "../utils/logoBase64";
 
 interface MenuItem {
@@ -43,6 +44,7 @@ const menuGroups: MenuGroup[] = [
     label: "Finanzas",
     items: [
       { name: "Ingresos & Gastos", path: "/transacciones", icon: "fas fa-chart-line" },
+      { name: "Métodos de Pago & Monedas", path: "/metodos-pago", icon: "fas fa-money-bill-transfer" },
       { name: "Cuentas por Cobrar", path: "/cuentas-cobrar", icon: "fas fa-file-invoice-dollar" },
       { name: "Cuentas por Pagar", path: "/cuentas-pagar", icon: "fas fa-file-export" },
     ]
@@ -102,6 +104,7 @@ const routeInfo: Record<string, { title: string; subtitle: string }> = {
   "/tarjetas-revision": { title: "Tarjetas de Revisión", subtitle: "Tarjetas de revisión técnica" },
   "/compras-pendientes": { title: "Compras Pendientes", subtitle: "Órdenes de compra pendientes" },
   "/transacciones": { title: "Ingresos & Gastos", subtitle: "Ingresos y gastos mensuales" },
+  "/metodos-pago": { title: "Métodos de Pago & Multimoneda", subtitle: "Gestión de cuentas bancarias, Zelle, Pago Móvil, Binance USDT y tasas de cambio" },
   "/cuentas-cobrar": { title: "Cuentas por Cobrar", subtitle: "Cuentas por cobrar del sistema" },
   "/cuentas-pagar": { title: "Cuentas por Pagar", subtitle: "Cuentas por pagar del sistema" },
   "/materiales": { title: "Materiales - Latonería y Pintura", subtitle: "Materiales para latonería y pintura" },
@@ -272,6 +275,9 @@ export default function Dashboard() {
               <i className="fas fa-brain"></i>
               <span className="hidden md:inline">Copiloto Gemini</span>
             </button>
+
+            {/* Selector de Multimoneda */}
+            <CurrencySelector />
 
             <button 
               onClick={toggleDarkMode}

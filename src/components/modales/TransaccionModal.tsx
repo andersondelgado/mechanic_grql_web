@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { createEntity, updateEntity } from "../../api/client";
+import { useCurrency } from "../../context/CurrencyContext";
 
 interface TransaccionModalProps {
   isOpen: boolean;
@@ -28,6 +29,10 @@ function formatDateForInput(rawDate: any): string {
 }
 
 export default function TransaccionModal({ isOpen, onClose, onSuccess, transaccion }: TransaccionModalProps) {
+  const { currencies, paymentMethods } = useCurrency();
+  const vesCurrency = currencies.find(c => c.code === 'VES');
+  const defaultRate = vesCurrency?.rate || 50;
+
   const [formData, setFormData] = useState<any>({
     transaction_date: new Date().toISOString().split('T')[0],
     month: new Date().toLocaleString('es-ES', { month: 'long' }),
@@ -41,9 +46,10 @@ export default function TransaccionModal({ isOpen, onClose, onSuccess, transacci
     other_expenses: 0,
     total_expenses: 0,
     total_amount: 0,
-    exchange_rate: 380,
+    exchange_rate: defaultRate,
     type: 'Ingreso',
-    description: ''
+    description: '',
+    payment_method_id: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -203,6 +209,32 @@ export default function TransaccionModal({ isOpen, onClose, onSuccess, transacci
                 </select>
               </div>
 
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Método de Pago</label>
+                <select
+                  value={formData.payment_method_id || ""}
+                  onChange={e => {
+                    const pmId = e.target.value;
+                    const selected = paymentMethods.find(p => p.id === pmId);
+                    handleFieldChange("payment_method_id", pmId);
+                    if (selected) {
+                      handleFieldChange("payment_method_name", selected.title);
+                      if (!formData.description) {
+                        handleFieldChange("description", `${formData.type || 'Movimiento'} vía ${selected.title}`);
+                      }
+                    }
+                  }}
+                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm bg-white"
+                >
+                  <option value="">-- Seleccionar Método de Pago --</option>
+                  {paymentMethods.map(pm => (
+                    <option key={pm.id} value={pm.id}>
+                      {pm.country === 'VE' ? '🇻🇪' : pm.country === 'US' ? '🇺🇸' : pm.country === 'CO' ? '🇨🇴' : pm.country === 'ES' ? '🇪🇸' : '🌐'} {pm.title} ({pm.currency})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div className="md:col-span-2">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Descripción del Movimiento *</label>
                 <input 
@@ -216,7 +248,7 @@ export default function TransaccionModal({ isOpen, onClose, onSuccess, transacci
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Monto ($) *</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Monto ($ USD) *</label>
                 <input 
                   type="number" 
                   step="0.01"
@@ -236,6 +268,16 @@ export default function TransaccionModal({ isOpen, onClose, onSuccess, transacci
                   onChange={e => handleFieldChange("exchange_rate", e.target.value)} 
                   className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm" 
                 />
+              </div>
+
+              {/* Cálculo en vivo de equivalencia */}
+              <div className="md:col-span-2 bg-blue-50/60 border border-blue-200/80 p-3.5 rounded-2xl flex flex-wrap items-center justify-between text-xs gap-2">
+                <span className="font-bold text-blue-900 flex items-center gap-1.5">
+                  <i className="fas fa-coins text-primary"></i> Equivalencia al cambio:
+                </span>
+                <span className="font-mono font-extrabold text-primary text-sm">
+                  Bs. {new Intl.NumberFormat('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format((parseFloat(formData.total_amount) || 0) * (parseFloat(formData.exchange_rate) || 1))} VES
+                </span>
               </div>
             </div>
           </div>
