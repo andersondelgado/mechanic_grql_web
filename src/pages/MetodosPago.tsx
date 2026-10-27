@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useCurrency } from '../context/CurrencyContext';
 import { PaymentMethod, SupportedCountry, COUNTRIES, CountryInfo, PaymentMethodType } from '../types/multicurrency';
+import { CountryFlag } from '../components/currency/CountryFlag';
 
 export default function MetodosPago() {
   const {
@@ -217,14 +218,14 @@ export default function MetodosPago() {
       </div>
 
       {/* Banner de Detección Dinámica por Geolocalización (Latitud/Longitud) */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl shadow-xl p-6 border border-indigo-900/50">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="p-3 bg-white/10 rounded-2xl text-amber-400 text-xl backdrop-blur-sm">
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl shadow-xl p-5 sm:p-6 border border-indigo-900/50">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-start sm:items-center gap-3.5">
+            <div className="p-3 bg-white/10 rounded-2xl text-amber-400 text-xl backdrop-blur-sm shrink-0">
               <i className="fas fa-location-crosshairs"></i>
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs uppercase tracking-wider font-extrabold text-indigo-300">
                   Detección Dinámica por Geolocalización
                 </span>
@@ -232,8 +233,8 @@ export default function MetodosPago() {
                   Activo
                 </span>
               </div>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-2xl">{detectedCountryInfo.flag}</span>
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                <CountryFlag countryCode={detectedCountryInfo.code} className="w-6 h-6" />
                 <h3 className="text-lg font-black tracking-tight text-white">
                   {detectedCountryInfo.name} ({detectedCountryInfo.code})
                 </h3>
@@ -241,35 +242,37 @@ export default function MetodosPago() {
                   • Moneda Local: <span className="font-bold text-white">{detectedCountryInfo.currency}</span>
                 </span>
               </div>
-              <p className="text-xs text-indigo-300 mt-1 flex items-center gap-2">
+              <p className="text-xs text-indigo-300 mt-1 flex items-center gap-2 flex-wrap">
                 <span>
                   {detectedCoords 
                     ? `Coordenadas: [${detectedCoords.latitude.toFixed(4)}, ${detectedCoords.longitude.toFixed(4)}]` 
                     : `Detectado mediante: ${detectionSource}`}
                 </span>
-                <span className="text-white/40">•</span>
+                <span className="text-white/40 hidden sm:inline">•</span>
                 <span>Fuente: {detectionSource === 'geolocation' ? 'GPS Navegador' : 'Zona Horaria del Dispositivo'}</span>
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5 self-start lg:self-center">
             <button
+              type="button"
               onClick={() => setFilterByLocation(!filterByLocation)}
-              className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 border ${
+              className={`px-3.5 py-2 rounded-xl font-bold text-xs transition-all flex items-center gap-2 border whitespace-nowrap ${
                 filterByLocation
                   ? 'bg-amber-500 text-slate-900 border-amber-400 shadow-md'
                   : 'bg-white/10 hover:bg-white/20 text-white border-white/20'
               }`}
             >
               <i className={`fas ${filterByLocation ? 'fa-filter-circle-xmark' : 'fa-filter'}`}></i>
-              {filterByLocation ? 'Ver todos los métodos' : `Ver solo métodos para ${detectedCountryInfo.code}`}
+              {filterByLocation ? 'Ver todos los métodos' : `Ver solo para ${detectedCountryInfo.code}`}
             </button>
 
             <button
+              type="button"
               onClick={handleDetectLocation}
               disabled={isDetecting}
-              className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-xs shadow transition flex items-center gap-2 disabled:opacity-50"
+              className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-xs shadow transition flex items-center gap-2 disabled:opacity-50 whitespace-nowrap"
             >
               <i className={`fas fa-arrows-rotate ${isDetecting ? 'fa-spin' : ''}`}></i>
               {isDetecting ? 'Detectando...' : 'Re-detectar Ubicación'}
@@ -279,25 +282,28 @@ export default function MetodosPago() {
 
         {/* Alerta si el negocio no ha configurado la tasa de cambio para el país detectado */}
         {!isDetectedCountryRateConfigured && (
-          <div className="mt-4 pt-4 border-t border-indigo-800/60 flex items-start gap-3 bg-amber-500/10 p-3.5 rounded-2xl border border-amber-500/30">
-            <i className="fas fa-triangle-exclamation text-amber-400 text-lg mt-0.5"></i>
-            <div className="flex-1 text-xs">
-              <span className="font-black text-amber-300">
-                Tasa de cambio no configurada para {detectedCountryInfo.currency}:
-              </span>
-              <p className="text-amber-150 text-gray-200 mt-0.5">
-                El negocio aún no tiene configurada una tasa de cambio activa para {detectedCountryInfo.name}. 
-                Los métodos de pago en moneda local (como Pago Móvil o transferencias en {detectedCountryInfo.currency}) 
-                <strong> no serán visibles ni elegibles para los clientes</strong> hasta que se asigne una tasa mayor a 0.
-              </p>
+          <div className="mt-4 pt-4 border-t border-indigo-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-amber-500/10 p-3.5 rounded-2xl border border-amber-500/30">
+            <div className="flex items-start gap-3">
+              <i className="fas fa-triangle-exclamation text-amber-400 text-lg mt-0.5 shrink-0"></i>
+              <div className="text-xs">
+                <span className="font-black text-amber-300">
+                  Tasa de cambio no configurada para {detectedCountryInfo.currency}:
+                </span>
+                <p className="text-amber-150 text-gray-200 mt-0.5">
+                  El negocio aún no tiene configurada una tasa de cambio activa para {detectedCountryInfo.name}. 
+                  Los métodos de pago en moneda local ({detectedCountryInfo.currency}) 
+                  permanecerán inactivos para los clientes hasta fijar una tasa mayor a 0.
+                </p>
+              </div>
             </div>
             <button
+              type="button"
               onClick={() => {
                 setEditingRateCode(detectedCountryInfo.currency);
                 const curr = currencies.find(c => c.code === detectedCountryInfo.currency);
                 setTempRate(curr?.rate || 0);
               }}
-              className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-lg text-xs whitespace-nowrap"
+              className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-lg text-xs whitespace-nowrap self-start sm:self-auto shrink-0 shadow-sm"
             >
               Fijar Tasa Ahora
             </button>
@@ -305,171 +311,210 @@ export default function MetodosPago() {
         )}
       </div>
 
-      {/* Tarjetas de Tasas de Cambio & Conversor Integrado */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Tarjetas de Tasas de Cambio & Conversor Integrado (Responsive Grid) */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-stretch">
         {/* Tasas de Cambio Live */}
-        <div className="lg:col-span-2 bg-white rounded-3xl shadow-card border border-gray-100 p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-gray-100 mb-5 gap-3">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 bg-emerald-50 text-emerald-600 rounded-xl">
-                <i className="fas fa-chart-line text-lg"></i>
+        <div className="xl:col-span-7 2xl:col-span-7 bg-white rounded-3xl shadow-card border border-gray-100 p-5 sm:p-6 flex flex-col justify-between">
+          <div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-gray-100 mb-5 gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl">
+                  <i className="fas fa-chart-line text-lg"></i>
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-secondary">Tasas de Cambio Activas</h2>
+                  <p className="text-xs text-gray-500">Valor de referencia relativo a 1 Dólar Estadounidense (USD)</p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-base font-bold text-secondary">Tasas de Cambio Activas</h2>
-                <p className="text-xs text-gray-500">Valor de referencia relativo a 1 Dólar Estadounidense (USD)</p>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowHistoryModal(true)}
+                  className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-xl flex items-center gap-1.5 transition shadow-xs"
+                  title="Ver o registrar histórico de tasas del día"
+                >
+                  <i className="fas fa-clock-rotate-left"></i>
+                  <span>Histórico</span>
+                  <span className="bg-indigo-600 text-white text-[10px] px-1.5 py-0.2 rounded-full font-mono">
+                    {rateHistory.length}
+                  </span>
+                </button>
+                <span className="text-[11px] font-semibold text-gray-400 bg-gray-50 px-2.5 py-1 rounded-lg">
+                  Base: USD ($)
+                </span>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+              {currencies.map(curr => {
+                const isEditing = editingRateCode === curr.code;
+                return (
+                  <div
+                    key={curr.code}
+                    className={`p-3.5 sm:p-4 rounded-2xl border transition-all ${
+                      curr.code === 'USD'
+                        ? 'bg-blue-50/40 border-blue-150'
+                        : 'bg-gray-50/70 hover:bg-white border-gray-150 hover:shadow-xs'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <CountryFlag countryCode={curr.code} className="w-5 h-5 shrink-0" />
+                        <span className="font-extrabold text-sm text-gray-800">{curr.code}</span>
+                      </div>
+                      {curr.code !== 'USD' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (isEditing) {
+                              handleSaveRate(curr.code);
+                            } else {
+                              setEditingRateCode(curr.code);
+                              setTempRate(curr.rate);
+                            }
+                          }}
+                          className="text-xs text-primary hover:text-blue-700 font-bold flex items-center gap-1 px-1.5 py-0.5 rounded-lg hover:bg-blue-50 transition"
+                          title={isEditing ? "Guardar tasa" : "Editar tasa"}
+                        >
+                          <i className={`fas ${isEditing ? 'fa-check text-green-600' : 'fa-pen text-gray-400'}`}></i>
+                          <span className="text-[11px]">{isEditing ? 'Guardar' : 'Editar'}</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="text-xs text-gray-500 mb-2 truncate" title={curr.name}>{curr.name}</div>
+
+                    {isEditing ? (
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={tempRate}
+                          onChange={e => setTempRate(parseFloat(e.target.value) || 0)}
+                          className="w-full px-2.5 py-1.5 text-sm font-bold border border-primary rounded-lg focus:outline-none"
+                          autoFocus
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleSaveRate(curr.code)}
+                          className="p-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 text-xs shrink-0"
+                        >
+                          <i className="fas fa-check"></i>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-lg font-black text-secondary">
+                          {curr.rate}
+                        </span>
+                        <span className="text-xs font-semibold text-gray-500">
+                          {curr.symbol} / USD
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="text-[10px] text-gray-400 mt-2 flex items-center justify-between">
+                      <span className="truncate">{curr.countries.join(', ')}</span>
+                      {curr.code === 'VES' && <span className="font-bold text-emerald-600 shrink-0 ml-1">Bs. Tasa Taller</span>}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* 6to Slot: Acceso directo al Histórico de Tasas del Día (completa el grid 3x2) */}
               <button
+                type="button"
                 onClick={() => setShowHistoryModal(true)}
-                className="px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-xl flex items-center gap-2 transition"
-                title="Ver o registrar histórico de tasas del día"
+                className="p-3.5 sm:p-4 rounded-2xl border-2 border-dashed border-indigo-200 hover:border-indigo-400 bg-indigo-50/30 hover:bg-indigo-50/70 transition-all cursor-pointer flex flex-col items-center justify-center text-center group min-h-[110px]"
               >
-                <i className="fas fa-clock-rotate-left"></i>
-                <span>Histórico del Día</span>
-                <span className="bg-indigo-600 text-white text-[10px] px-1.5 py-0.2 rounded-full">
-                  {rateHistory.length}
+                <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center mb-1 group-hover:scale-110 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-xs">
+                  <i className="fas fa-clock-rotate-left text-xs"></i>
+                </div>
+                <span className="text-xs font-extrabold text-indigo-950">Histórico del Día</span>
+                <span className="text-[10px] font-semibold text-indigo-600 mt-0.5">
+                  {rateHistory.length} snapshots guardados
                 </span>
               </button>
-              <span className="text-[11px] font-semibold text-gray-400 bg-gray-50 px-2.5 py-1 rounded-lg">
-                Base: USD ($)
-              </span>
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
-            {currencies.map(curr => {
-              const isEditing = editingRateCode === curr.code;
-              return (
-                <div
-                  key={curr.code}
-                  className={`p-4 rounded-2xl border transition-all ${
-                    curr.code === 'USD'
-                      ? 'bg-blue-50/40 border-blue-150'
-                      : 'bg-gray-50/70 hover:bg-white border-gray-150 hover:shadow-sm'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl">{curr.flag}</span>
-                      <span className="font-extrabold text-sm text-gray-800">{curr.code}</span>
-                    </div>
-                    {curr.code !== 'USD' && (
-                      <button
-                        onClick={() => {
-                          if (isEditing) {
-                            handleSaveRate(curr.code);
-                          } else {
-                            setEditingRateCode(curr.code);
-                            setTempRate(curr.rate);
-                          }
-                        }}
-                        className="text-xs text-primary hover:text-blue-700 font-bold flex items-center gap-1"
-                        title={isEditing ? "Guardar tasa" : "Editar tasa"}
-                      >
-                        <i className={`fas ${isEditing ? 'fa-check text-green-600' : 'fa-pen text-gray-400'}`}></i>
-                        <span className="text-[11px]">{isEditing ? 'Guardar' : 'Editar'}</span>
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="text-xs text-gray-500 mb-2 truncate">{curr.name}</div>
-
-                  {isEditing ? (
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={tempRate}
-                        onChange={e => setTempRate(parseFloat(e.target.value) || 0)}
-                        className="w-full px-2.5 py-1.5 text-sm font-bold border border-primary rounded-lg focus:outline-none"
-                        autoFocus
-                      />
-                      <button
-                        onClick={() => handleSaveRate(curr.code)}
-                        className="p-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 text-xs"
-                      >
-                        <i className="fas fa-check"></i>
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="text-lg font-black text-secondary">
-                        {curr.rate}
-                      </span>
-                      <span className="text-xs font-semibold text-gray-500">
-                        {curr.symbol} / USD
-                      </span>
-                    </div>
-                  )}
-
-                  <div className="text-[10px] text-gray-400 mt-2 flex items-center justify-between">
-                    <span>{curr.countries.join(', ')}</span>
-                    {curr.code === 'VES' && <span className="font-bold text-emerald-600">Bs. Tasa Taller</span>}
-                  </div>
-                </div>
-              );
-            })}
           </div>
         </div>
 
-        {/* Conversor Rápido en Vivo */}
-        <div className="bg-gradient-to-br from-gray-900 to-slate-800 text-white rounded-3xl shadow-card p-6 flex flex-col justify-between">
+        {/* Conversor Rápido en Vivo (Calculadora de Conversión Responsive) */}
+        <div className="xl:col-span-5 2xl:col-span-5 bg-gradient-to-br from-gray-900 via-slate-900 to-indigo-950 text-white rounded-3xl shadow-card p-5 sm:p-6 flex flex-col justify-between border border-gray-800">
           <div>
-            <div className="flex items-center gap-2 mb-4">
-              <i className="fas fa-calculator text-primary text-lg"></i>
-              <h3 className="font-bold text-sm tracking-wide uppercase text-gray-300">
-                Calculadora de Conversión
-              </h3>
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-primary/20 text-primary rounded-xl">
+                  <i className="fas fa-calculator text-base"></i>
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-sm tracking-wide uppercase text-white">
+                    Calculadora de Conversión
+                  </h3>
+                  <p className="text-[11px] text-gray-400">Conversión en vivo con tasas activas</p>
+                </div>
+              </div>
             </div>
 
             <div className="space-y-4">
-              <div>
-                <label className="text-xs text-gray-400 mb-1.5 block">Monto a Convertir</label>
-                <div className="flex items-center gap-2">
+              {/* Input Group Responsivo */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 bg-white/5 border border-white/10 rounded-2xl p-1.5 focus-within:border-primary/50 transition">
+                <div className="flex-1 px-3 py-1">
+                  <span className="text-[10px] uppercase font-bold text-gray-400 block">Monto a Convertir</span>
                   <input
                     type="number"
                     step="0.01"
                     value={calcAmount}
                     onChange={e => setCalcAmount(parseFloat(e.target.value) || 0)}
-                    className="flex-1 bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-white font-bold text-lg outline-none focus:border-primary"
+                    className="w-full bg-transparent text-white font-black text-xl outline-none placeholder-gray-500"
+                    placeholder="0.00"
                   />
+                </div>
+                <div className="sm:border-l sm:border-white/10 sm:pl-2 pr-1">
                   <select
                     value={calcFromCurrency}
                     onChange={e => setCalcFromCurrency(e.target.value)}
-                    className="bg-gray-800 border border-white/20 rounded-xl px-3 py-2 text-white font-bold text-sm outline-none"
+                    className="w-full sm:w-auto bg-gray-800/90 hover:bg-gray-800 text-white font-bold text-xs px-3 py-2.5 rounded-xl outline-none border border-white/10 cursor-pointer"
                   >
                     {currencies.map(c => (
-                      <option key={c.code} value={c.code}>
-                        {c.flag} {c.code}
+                      <option key={c.code} value={c.code} className="bg-gray-900 text-white">
+                        {c.code} - {c.name}
                       </option>
                     ))}
                   </select>
                 </div>
               </div>
 
-              {/* Resultados en tiempo real */}
-              <div className="space-y-2 pt-2 border-t border-white/10">
-                <span className="text-[11px] uppercase tracking-wider text-gray-400 font-bold block mb-1">
+              {/* Resultados en tiempo real: Grid responsivo de 2 columnas */}
+              <div className="pt-2 border-t border-white/10">
+                <span className="text-[11px] uppercase tracking-wider text-gray-400 font-extrabold block mb-2.5">
                   Equivalencias Actuales:
                 </span>
-                {currencies
-                  .filter(c => c.code !== calcFromCurrency)
-                  .map(targetCurr => (
-                    <div
-                      key={targetCurr.code}
-                      className="flex items-center justify-between bg-white/5 px-3 py-2 rounded-xl text-xs"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span>{targetCurr.flag}</span>
-                        <span className="font-semibold text-gray-300">{targetCurr.code}</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {currencies
+                    .filter(c => c.code !== calcFromCurrency)
+                    .map(targetCurr => (
+                      <div
+                        key={targetCurr.code}
+                        className="flex items-center justify-between bg-white/5 hover:bg-white/10 transition border border-white/10 rounded-2xl p-2.5 text-xs group"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <CountryFlag countryCode={targetCurr.code} className="w-4 h-4 shrink-0" />
+                          <div className="truncate">
+                            <span className="font-extrabold text-white text-xs block truncate">{targetCurr.code}</span>
+                            <span className="text-[10px] text-gray-400 block truncate">{targetCurr.name}</span>
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0 ml-2">
+                          <span className="font-mono font-black text-emerald-400 text-sm block">
+                            {getConvertedCalc(targetCurr.code)}
+                          </span>
+                          <span className="text-[10px] text-gray-400 font-semibold">{targetCurr.symbol}</span>
+                        </div>
                       </div>
-                      <span className="font-mono font-bold text-white text-sm">
-                        {getConvertedCalc(targetCurr.code)} {targetCurr.symbol}
-                      </span>
-                    </div>
-                  ))}
+                    ))}
+                </div>
               </div>
             </div>
           </div>
@@ -482,15 +527,17 @@ export default function MetodosPago() {
         </div>
       </div>
 
-      {/* Pestañas por País */}
+      {/* Pestañas por País & Buscador (Responsive) */}
       <div className="space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-2 p-1.5 bg-gray-100 rounded-2xl w-fit">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          {/* Tabs con scroll horizontal limpio sin saltos rotos */}
+          <div className="flex items-center gap-1.5 p-1.5 bg-gray-100/90 rounded-2xl overflow-x-auto no-scrollbar max-w-full shrink">
             <button
+              type="button"
               onClick={() => setSelectedCountry('ALL')}
-              className={`px-4 py-2 rounded-xl font-bold text-xs transition ${
+              className={`px-3.5 py-2 rounded-xl font-bold text-xs transition whitespace-nowrap shrink-0 ${
                 selectedCountry === 'ALL'
-                  ? 'bg-white text-secondary shadow-sm'
+                  ? 'bg-white text-secondary shadow-xs'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
@@ -500,17 +547,18 @@ export default function MetodosPago() {
               const count = paymentMethods.filter(p => p.country === ctry.code).length;
               return (
                 <button
+                  type="button"
                   key={ctry.code}
                   onClick={() => setSelectedCountry(ctry.code)}
-                  className={`px-4 py-2 rounded-xl font-bold text-xs transition flex items-center gap-1.5 ${
+                  className={`px-3.5 py-2 rounded-xl font-bold text-xs transition flex items-center gap-2 whitespace-nowrap shrink-0 ${
                     selectedCountry === ctry.code
-                      ? 'bg-white text-secondary shadow-sm'
+                      ? 'bg-white text-secondary shadow-xs'
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
-                  <span>{ctry.flag}</span>
+                  <CountryFlag countryCode={ctry.code} className="w-4 h-4 shrink-0" />
                   <span>{ctry.name}</span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-200/70 text-gray-600">
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-200/70 text-gray-600 font-semibold">
                     {count}
                   </span>
                 </button>
@@ -518,8 +566,8 @@ export default function MetodosPago() {
             })}
           </div>
 
-          {/* Buscador de métodos */}
-          <div className="relative">
+          {/* Buscador responsivo */}
+          <div className="relative w-full lg:w-72 shrink-0">
             <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-gray-400">
               <i className="fas fa-search text-xs"></i>
             </span>
@@ -528,13 +576,13 @@ export default function MetodosPago() {
               placeholder="Buscar por banco, teléfono, Zelle, Binance..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="w-full sm:w-72 pl-10 pr-4 py-2 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 outline-none text-xs"
+              className="w-full pl-10 pr-4 py-2 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 outline-none text-xs bg-white"
             />
           </div>
         </div>
 
-        {/* Filtros de Tipo */}
-        <div className="flex flex-wrap items-center gap-2">
+        {/* Filtros de Tipo con scroll horizontal responsivo */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 max-w-full">
           {[
             { id: 'ALL', label: 'Todos los Tipos' },
             { id: 'pago_movil', label: '📱 Pago Móvil' },
@@ -546,9 +594,10 @@ export default function MetodosPago() {
             { id: 'bizum', label: '🇪🇸 Bizum' }
           ].map(type => (
             <button
+              type="button"
               key={type.id}
               onClick={() => setSelectedType(type.id)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition whitespace-nowrap shrink-0 ${
                 selectedType === type.id
                   ? 'bg-secondary text-white'
                   : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
@@ -559,6 +608,7 @@ export default function MetodosPago() {
           ))}
         </div>
       </div>
+
 
       {/* Alerta de País sin Tasa de Cambio */}
       {selectedCountry !== 'ALL' && selectedCountry !== 'GLOBAL' && !isRateConfiguredForCountry(selectedCountry as SupportedCountry) && (
@@ -653,7 +703,7 @@ export default function MetodosPago() {
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="text-base" title={countryMeta.name}>{countryMeta.flag}</span>
+                          <CountryFlag countryCode={method.country} className="w-5 h-5 shrink-0" />
                           <span className="font-extrabold text-sm text-secondary leading-tight">
                             {method.title}
                           </span>

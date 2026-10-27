@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useCurrency } from '../../context/CurrencyContext';
 import { Link } from 'react-router-dom';
+import { CountryFlag } from './CountryFlag';
 
 export default function CurrencySelector() {
   const { currencies, currentCurrency, setCurrencyCode } = useCurrency();
@@ -24,7 +25,7 @@ export default function CurrencySelector() {
         className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 shadow-xs transition text-xs font-semibold text-gray-700"
         title="Cambiar moneda de visualización"
       >
-        <span className="text-base">{currentCurrency.flag}</span>
+        <CountryFlag countryCode={currentCurrency.code} className="w-4 h-4 shrink-0" />
         <span className="font-bold text-gray-800">{currentCurrency.code}</span>
         {currentCurrency.code !== 'USD' && (
           <span className="text-[11px] text-gray-500 font-mono hidden sm:inline">
@@ -56,7 +57,7 @@ export default function CurrencySelector() {
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
-                    <span className="text-base">{curr.flag}</span>
+                    <CountryFlag countryCode={curr.code} className="w-5 h-5 shrink-0" />
                     <div className="text-left">
                       <div className="font-bold leading-tight">{curr.code} - {curr.name}</div>
                       <div className="text-[10px] text-gray-400">
