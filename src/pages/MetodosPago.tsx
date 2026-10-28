@@ -535,37 +535,50 @@ export default function MetodosPago() {
       </div>
 
       {/* Pestañas por País & Buscador (Responsive) */}
-      <div className="space-y-3.5 min-w-0">
-        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 min-w-0">
-          {/* Tabs con scroll horizontal limpio sin saltos rotos */}
-          <div className="flex items-center gap-1.5 p-1.5 bg-gray-100/90 rounded-2xl overflow-x-auto no-scrollbar min-w-0 max-w-full">
+      <div className="space-y-3 min-w-0">
+        <div className="flex flex-col 2xl:flex-row 2xl:items-center justify-between gap-3 min-w-0">
+          {/* Tabs con flex-wrap para que ninguna pestaña quede cortada */}
+          <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-gray-100/90 border border-gray-200/70 rounded-2xl min-w-0">
             <button
               type="button"
               onClick={() => setSelectedCountry('ALL')}
-              className={`px-3.5 py-2 rounded-xl font-bold text-xs transition whitespace-nowrap shrink-0 ${
+              className={`px-3 py-2 rounded-xl font-bold text-xs transition flex items-center gap-2 whitespace-nowrap shrink-0 ${
                 selectedCountry === 'ALL'
-                  ? 'bg-white text-secondary shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-white text-secondary shadow-sm ring-1 ring-gray-200/80'
+                  : 'bg-white/40 hover:bg-white text-gray-700 hover:text-secondary'
               }`}
             >
-              🌎 Todos los Países ({paymentMethods.length})
+              <span>🌎</span>
+              <span>Todos los Países</span>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-extrabold ${
+                selectedCountry === 'ALL'
+                  ? 'bg-primary/10 text-primary'
+                  : 'bg-gray-200/80 text-gray-700'
+              }`}>
+                {paymentMethods.length}
+              </span>
             </button>
             {COUNTRIES.map(ctry => {
               const count = paymentMethods.filter(p => p.country === ctry.code).length;
+              const isSelected = selectedCountry === ctry.code;
               return (
                 <button
                   type="button"
                   key={ctry.code}
                   onClick={() => setSelectedCountry(ctry.code)}
-                  className={`px-3.5 py-2 rounded-xl font-bold text-xs transition flex items-center gap-2 whitespace-nowrap shrink-0 ${
-                    selectedCountry === ctry.code
-                      ? 'bg-white text-secondary shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
+                  className={`px-3 py-2 rounded-xl font-bold text-xs transition flex items-center gap-2 whitespace-nowrap shrink-0 ${
+                    isSelected
+                      ? 'bg-white text-secondary shadow-sm ring-1 ring-gray-200/80'
+                      : 'bg-white/40 hover:bg-white text-gray-700 hover:text-secondary'
                   }`}
                 >
                   <CountryFlag countryCode={ctry.code} className="w-4 h-4 shrink-0" />
                   <span>{ctry.name}</span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-200/70 text-gray-600 font-semibold">
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-extrabold ${
+                    isSelected
+                      ? 'bg-primary/10 text-primary'
+                      : 'bg-gray-200/80 text-gray-700'
+                  }`}>
                     {count}
                   </span>
                 </button>
@@ -574,7 +587,7 @@ export default function MetodosPago() {
           </div>
 
           {/* Buscador responsivo */}
-          <div className="relative w-full xl:w-72 shrink-0">
+          <div className="relative w-full 2xl:w-72 shrink-0">
             <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-gray-400">
               <i className="fas fa-search text-xs"></i>
             </span>
@@ -588,8 +601,8 @@ export default function MetodosPago() {
           </div>
         </div>
 
-        {/* Filtros de Tipo con scroll horizontal responsivo */}
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 min-w-0 max-w-full">
+        {/* Filtros de Tipo con flex-wrap para visualización completa */}
+        <div className="flex flex-wrap items-center gap-2 min-w-0">
           {[
             { id: 'ALL', label: 'Todos los Tipos', country: undefined },
             { id: 'pago_movil', label: '📱 Pago Móvil', country: undefined },
@@ -606,8 +619,8 @@ export default function MetodosPago() {
               onClick={() => setSelectedType(type.id)}
               className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
                 selectedType === type.id
-                  ? 'bg-secondary text-white'
-                  : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                  ? 'bg-secondary text-white shadow-sm'
+                  : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
               }`}
             >
               {type.country && <CountryFlag countryCode={type.country} className="w-3.5 h-3.5 shrink-0" />}
@@ -711,9 +724,9 @@ export default function MetodosPago() {
                         <i className={typeIcon}></i>
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <CountryFlag countryCode={method.country} className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
-                          <span className="font-extrabold text-sm text-secondary leading-tight truncate" title={method.title}>
+                        <div className="flex items-start gap-1.5 min-w-0">
+                          <CountryFlag countryCode={method.country} className="w-4 h-4 sm:w-5 sm:h-5 shrink-0 mt-0.5" />
+                          <span className="font-extrabold text-sm text-secondary leading-snug break-words" title={method.title}>
                             {method.title}
                           </span>
                         </div>

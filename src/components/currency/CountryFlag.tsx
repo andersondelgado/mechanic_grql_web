@@ -87,8 +87,21 @@ export const CountryFlag: React.FC<CountryFlagProps> = ({
     );
   }
 
-  // Binance USDT / Cripto / Global
-  if (code === 'USDT' || code === 'GLOBAL' || code === 'CRYPTO') {
+  // Internacional / Global
+  if (code === 'GLOBAL') {
+    return (
+      <span className={`inline-flex items-center justify-center rounded-full bg-indigo-600 text-white shadow-xs shrink-0 p-0.5 ${className}`}>
+        <svg viewBox="0 0 24 24" className="w-full h-full fill-none stroke-current" strokeWidth="2">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M3.6 9h16.8M3.6 15h16.8" />
+          <path d="M12 3a14.5 14.5 0 0 0 0 18 14.5 14.5 0 0 0 0-18z" />
+        </svg>
+      </span>
+    );
+  }
+
+  // Binance USDT / Cripto
+  if (code === 'USDT' || code === 'CRYPTO') {
     return (
       <span className={`inline-flex items-center justify-center rounded-full bg-emerald-500 text-white shadow-xs shrink-0 p-0.5 ${className}`}>
         <svg viewBox="0 0 24 24" className="w-full h-full fill-current">
