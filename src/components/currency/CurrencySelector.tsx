@@ -19,16 +19,17 @@ export default function CurrencySelector() {
   }, []);
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="relative shrink-0" ref={dropdownRef}>
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 shadow-xs transition text-xs font-semibold text-gray-700"
+        className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 shadow-sm transition text-xs font-semibold text-gray-700 whitespace-nowrap"
         title="Cambiar moneda de visualización"
       >
         <CountryFlag countryCode={currentCurrency.code} className="w-4 h-4 shrink-0" />
         <span className="font-bold text-gray-800">{currentCurrency.code}</span>
         {currentCurrency.code !== 'USD' && (
-          <span className="text-[11px] text-gray-500 font-mono hidden sm:inline">
+          <span className="text-[11px] text-gray-500 font-mono hidden md:inline">
             ({currentCurrency.rate} {currentCurrency.symbol})
           </span>
         )}
@@ -36,7 +37,7 @@ export default function CurrencySelector() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-gray-100 p-2 z-50 animate-fadeIn text-xs">
+        <div className="absolute right-0 mt-2 w-64 max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-xl border border-gray-100 p-2 z-50 animate-fadeIn text-xs">
           <div className="px-3 py-2 border-b border-gray-100 flex items-center justify-between">
             <span className="font-bold text-gray-800">Moneda del Sistema</span>
             <span className="text-[10px] bg-blue-50 text-blue-700 font-bold px-2 py-0.5 rounded-full">Base: USD</span>

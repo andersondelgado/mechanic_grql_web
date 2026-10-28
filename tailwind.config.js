@@ -17,6 +17,7 @@ export default {
         sans: ['Inter', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
+        'xs': '0 1px 2px 0 rgba(0,0,0,0.05)',
         'soft': '0 2px 8px rgba(0,0,0,0.05), 0 1px 4px rgba(0,0,0,0.08)',
         'card': '0 4px 20px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.06)',
         'strong': '0 10px 30px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.06)',

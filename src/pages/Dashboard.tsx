@@ -250,30 +250,30 @@ export default function Dashboard() {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 lg:ml-64 flex flex-col h-full overflow-y-auto">
+      <main className="flex-1 lg:ml-64 flex flex-col h-full overflow-hidden min-w-0">
         {/* Top Header */}
-        <header className="bg-white shadow-soft border-b border-gray-100 px-4 py-3.5 lg:px-8 flex items-center justify-between flex-wrap gap-3 z-10">
-          <div className="flex items-center gap-4">
+        <header className="bg-white shadow-soft border-b border-gray-100 px-3 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-2 sm:gap-4 z-10 shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-4 min-w-0 flex-1">
             <button 
               onClick={() => setSidebarOpen(true)} 
-              className="lg:hidden p-2.5 hover:bg-gray-100 rounded-xl transition"
+              className="lg:hidden p-2 hover:bg-gray-100 rounded-xl transition shrink-0"
             >
               <i className="fas fa-bars text-gray-600"></i>
             </button>
-            <div>
-              <h2 className="text-xl font-bold text-secondary">{currentInfo.title}</h2>
-              <p className="text-xs text-gray-500 mt-0.5">{currentInfo.subtitle}</p>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-base sm:text-xl font-bold text-secondary truncate">{currentInfo.title}</h2>
+              <p className="text-xs text-gray-500 mt-0.5 truncate hidden sm:block">{currentInfo.subtitle}</p>
             </div>
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <button
               onClick={() => setCopilotOpen(true)}
-              className="hidden sm:inline-flex items-center gap-2 px-3 py-2.5 rounded-xl bg-purple-50 text-purple-600 hover:bg-purple-100 transition text-sm font-semibold"
+              className="inline-flex items-center gap-2 px-2.5 sm:px-3 py-2 rounded-xl bg-purple-50 text-purple-600 hover:bg-purple-100 transition text-xs sm:text-sm font-semibold shrink-0"
               title="Abrir Copiloto Gemini"
             >
               <i className="fas fa-brain"></i>
-              <span className="hidden md:inline">Copiloto Gemini</span>
+              <span className="hidden xl:inline">Copiloto Gemini</span>
             </button>
 
             {/* Selector de Multimoneda */}
@@ -281,22 +281,22 @@ export default function Dashboard() {
 
             <button 
               onClick={toggleDarkMode}
-              className="p-2.5 hover:bg-gray-100 rounded-xl transition text-gray-600" 
+              className="p-2 sm:p-2.5 hover:bg-gray-100 rounded-xl transition text-gray-600 shrink-0" 
               title="Cambiar Tema"
             >
               <i className={darkMode ? "fas fa-sun text-yellow-500" : "fas fa-moon"}></i>
             </button>
 
             {/* Profile Dropdown */}
-            <div className="relative">
+            <div className="relative shrink-0">
               <button 
                 onClick={() => setProfileOpen(!profileOpen)}
-                className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded-xl transition"
+                className="flex items-center gap-2 p-1.5 sm:p-2 hover:bg-gray-100 rounded-xl transition"
               >
-                <div className="w-8 h-8 bg-gradient-to-r from-primary to-blue-600 text-white rounded-full flex items-center justify-center font-bold text-xs">
+                <div className="w-8 h-8 bg-gradient-to-r from-primary to-blue-600 text-white rounded-full flex items-center justify-center font-bold text-xs shrink-0">
                   {user?.username ? user.username.slice(0, 2).toUpperCase() : "AD"}
                 </div>
-                <span className="hidden md:block font-medium text-sm text-secondary">{user?.username || "Admin"}</span>
+                <span className="hidden md:block font-medium text-sm text-secondary max-w-[110px] truncate">{user?.username || "Admin"}</span>
                 <i className="fas fa-chevron-down text-xs text-gray-400"></i>
               </button>
 
@@ -330,7 +330,7 @@ export default function Dashboard() {
         </header>
 
         {/* Content Outlet */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden">
           <Outlet />
         </div>
       </main>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { createEntity, updateEntity } from "../../api/client";
 import { useCurrency } from "../../context/CurrencyContext";
+import { CountryFlag } from "../currency/CountryFlag";
 
 interface PagoModalProps {
   isOpen: boolean;
@@ -107,29 +108,39 @@ export default function PagoModal({ isOpen, onClose, onSuccess, pago }: PagoModa
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Método de Pago</label>
-                <select
-                  value={formData.payment_method_id || ""}
-                  onChange={e => {
-                    const pmId = e.target.value;
-                    const pm = paymentMethods.find(p => p.id === pmId);
-                    handleFieldChange("payment_method_id", pmId);
-                    if (pm) {
-                      handleFieldChange("payment_method_name", pm.title);
-                      handleFieldChange("currency", pm.currency);
-                      if (!formData.category) {
-                        handleFieldChange("category", pm.title);
+                <div className="relative flex items-center">
+                  {formData.payment_method_id && (() => {
+                    const selectedPm = paymentMethods.find(p => p.id === formData.payment_method_id);
+                    return selectedPm ? (
+                      <span className="absolute left-3.5 pointer-events-none flex items-center">
+                        <CountryFlag countryCode={selectedPm.country} className="w-4 h-4" />
+                      </span>
+                    ) : null;
+                  })()}
+                  <select
+                    value={formData.payment_method_id || ""}
+                    onChange={e => {
+                      const pmId = e.target.value;
+                      const pm = paymentMethods.find(p => p.id === pmId);
+                      handleFieldChange("payment_method_id", pmId);
+                      if (pm) {
+                        handleFieldChange("payment_method_name", pm.title);
+                        handleFieldChange("currency", pm.currency);
+                        if (!formData.category) {
+                          handleFieldChange("category", pm.title);
+                        }
                       }
-                    }
-                  }}
-                  className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm bg-white"
-                >
-                  <option value="">-- Seleccionar Método de Pago --</option>
-                  {paymentMethods.map(pm => (
-                    <option key={pm.id} value={pm.id}>
-                      {pm.country === 'VE' ? '🇻🇪' : pm.country === 'US' ? '🇺🇸' : pm.country === 'CO' ? '🇨🇴' : pm.country === 'ES' ? '🇪🇸' : '🌐'} {pm.title} ({pm.currency})
-                    </option>
-                  ))}
-                </select>
+                    }}
+                    className={`w-full ${formData.payment_method_id ? 'pl-10' : 'px-4'} pr-4 py-2.5 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition outline-none text-sm bg-white`}
+                  >
+                    <option value="">-- Seleccionar Método de Pago --</option>
+                    {paymentMethods.map(pm => (
+                      <option key={pm.id} value={pm.id}>
+                        [{pm.country}] {pm.title} ({pm.currency})
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div>
