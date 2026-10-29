@@ -165,3 +165,4 @@ export const CompanyProvider: React.FC<{ children: React.ReactNode }> = ({ child
 };
 
 export const useCompany = () => useContext(CompanyContext);
+
