@@ -145,6 +145,10 @@ export default function TransaccionModal({ isOpen, onClose, onSuccess, transacci
         ) : 0,
         total_expenses: isExpense ? amount : 0,
         total_amount: amount,
+        payment_method_id: formData.payment_method_id || '',
+        payment_method_name: formData.payment_method_name || '',
+        currency: formData.currency || 'USD',
+        type: formData.type || 'Ingreso',
       };
 
       const targetId = transaccion?.id || transaccion?.transaction_id;
