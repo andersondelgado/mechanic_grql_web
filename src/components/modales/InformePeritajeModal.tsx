@@ -4,6 +4,7 @@ import { useGrqlList } from "../../hooks/use-grql";
 import { downloadInspectionReportPdf } from "../../utils/pdfGenerator";
 import { LOGO_TALLER_360_DATA_URL } from "../../utils/logoBase64";
 import type { InspectionAnalysis } from "../../types/entities";
+import { useCompany } from "../../context/CompanyContext";
 
 interface InformePeritajeModalProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ export default function InformePeritajeModal({
   peritaje,
   onRunAiAnalysis
 }: InformePeritajeModalProps) {
+  const { company } = useCompany();
   const [downloading, setDownloading] = useState(false);
 
   // Cuando el modal está abierto, agregar clase para ocultar todo el fondo de la app al imprimir
@@ -266,17 +268,17 @@ export default function InformePeritajeModal({
           <div className="border-b-2 border-slate-900 pb-3 print:pb-2 flex items-start justify-between print-avoid-break">
             <div className="flex items-center gap-3 sm:gap-4">
               <div className="w-14 h-14 print:w-11 print:h-11 bg-white border border-slate-200 shadow-sm rounded-xl flex items-center justify-center p-1.5 shrink-0">
-                <img src={LOGO_TALLER_360_DATA_URL} alt="Logo Taller 360" className="w-full h-full object-contain" />
+                <img src={company.logoDataUrl || LOGO_TALLER_360_DATA_URL} alt={company.commercialName} className="w-full h-full object-contain" />
               </div>
               <div>
                 <h1 className="text-xl print:text-base font-black tracking-tight text-slate-900">
-                  TALLER INTEGRAL 360 GARAGE C.A.
+                  {company.documentHeaderName}
                 </h1>
                 <p className="text-xs print:text-[10px] text-slate-600 font-medium uppercase tracking-wider">
-                  Mecánica General • Latonería y Pintura • Peritaje Computarizado
+                  {company.specialties}
                 </p>
                 <p className="text-[11px] print:text-[9px] text-slate-500">
-                  RIF: J-50123456-7 • Telf: (0212) 555-0360 • Caracas, Venezuela
+                  {company.taxIdLabel}: {company.taxId} • Telf: {company.phone} • {company.address}
                 </p>
               </div>
             </div>
@@ -524,7 +526,7 @@ export default function InformePeritajeModal({
 
           {/* Pie de página oficial */}
           <div className="text-center pt-3 print:pt-1 pb-1 border-t border-slate-200 text-[10px] print:text-[9px] text-slate-400 print-avoid-break">
-            Documento de diagnóstico asistido por IA generativa • Taller Integral 360 Garage C.A. • {new Date().getFullYear()}
+            Documento de diagnóstico asistido por IA generativa • {company.documentHeaderName} • {new Date().getFullYear()}
           </div>
 
         </div>

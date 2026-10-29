@@ -4,6 +4,7 @@ import { useAuth } from "../hooks/use-auth";
 import GeminiCopilotDrawer from "../components/ai/GeminiCopilotDrawer";
 import CurrencySelector from "../components/currency/CurrencySelector";
 import { LOGO_TALLER_360_DATA_URL } from "../utils/logoBase64";
+import { useCompany } from "../context/CompanyContext";
 
 interface MenuItem {
   name: string;
@@ -84,8 +85,9 @@ const menuGroups: MenuGroup[] = [
     ]
   },
   {
-    label: "Seguridad",
+    label: "Seguridad & Config",
     items: [
+      { name: "Configuración del Taller", path: "/configuracion", icon: "fas fa-building-shield" },
       { name: "Usuarios", path: "/usuarios", icon: "fas fa-user-shield" }
     ]
   }
@@ -116,12 +118,14 @@ const routeInfo: Record<string, { title: string; subtitle: string }> = {
   "/comunicaciones": { title: "Comunicaciones Internas", subtitle: "Memorandos y circulares de personal" },
   "/reportes": { title: "Reportes", subtitle: "Reportes y estadísticas" },
   "/backup": { title: "Backup y Restauración", subtitle: "Gestión de copias de seguridad" },
+  "/configuracion": { title: "Configuración del Taller & Marca", subtitle: "Personalización de identidad comercial, datos fiscales, contacto y membretes PDF" },
   "/usuarios": { title: "Control de Acceso", subtitle: "Gestión de usuarios y seguridad del sistema" },
 };
 
 export default function Dashboard() {
   const location = useLocation();
   const { user, logout } = useAuth();
+  const { company } = useCompany();
   
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -146,10 +150,10 @@ export default function Dashboard() {
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
           <div className="absolute inset-y-0 left-0 w-72 bg-secondary text-white shadow-xl overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-3 p-4 border-b border-gray-700 bg-secondary/80">
-              <img src={LOGO_TALLER_360_DATA_URL} alt="Taller 360" className="w-10 h-10 object-cover rounded-xl shadow-md border border-white/15 shrink-0" />
-              <div>
-                <h2 className="font-bold text-lg leading-tight">Taller 360</h2>
-                <p className="text-xs text-gray-400">Menú Principal</p>
+              <img src={company.logoDataUrl || LOGO_TALLER_360_DATA_URL} alt={company.commercialName} className="w-10 h-10 object-contain bg-white rounded-xl p-1 shadow-md border border-white/15 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <h2 className="font-bold text-base leading-tight truncate">{company.commercialName}</h2>
+                <p className="text-xs text-gray-400 truncate">{company.legalName}</p>
               </div>
             </div>
             <nav className="p-2 space-y-1">
@@ -197,10 +201,10 @@ export default function Dashboard() {
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 lg:z-30 bg-secondary text-white lg:overflow-y-auto border-r border-gray-800">
         <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-700 bg-secondary/80">
-          <img src={LOGO_TALLER_360_DATA_URL} alt="Taller Integral 360" className="w-11 h-11 object-cover rounded-xl shadow-md border border-white/15 shrink-0" />
-          <div>
-            <h1 className="font-bold text-base leading-tight">Taller Integral 360</h1>
-            <p className="text-[11px] text-gray-400">Urbaez Motors 2030 C.A.</p>
+          <img src={company.logoDataUrl || LOGO_TALLER_360_DATA_URL} alt={company.commercialName} className="w-11 h-11 object-contain bg-white rounded-xl p-1 shadow-md border border-white/15 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <h1 className="font-bold text-base leading-tight truncate" title={company.commercialName}>{company.commercialName}</h1>
+            <p className="text-[11px] text-gray-400 truncate" title={company.legalName}>{company.legalName}</p>
           </div>
         </div>
         <nav className="flex-1 overflow-y-auto py-4">
@@ -306,6 +310,13 @@ export default function Dashboard() {
                     <p className="text-xs text-gray-400 font-semibold uppercase">Cuenta</p>
                     <p className="text-sm font-bold text-secondary truncate">{user?.username || "Admin"}</p>
                   </div>
+                  <Link 
+                    to="/configuracion" 
+                    onClick={() => setProfileOpen(false)}
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition"
+                  >
+                    <i className="fas fa-building-shield text-primary text-xs"></i> Configuración del Taller
+                  </Link>
                   <Link 
                     to="/usuarios" 
                     onClick={() => setProfileOpen(false)}

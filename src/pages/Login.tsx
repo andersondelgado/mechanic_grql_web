@@ -2,8 +2,10 @@ import React, { useState } from "react";
 import { useAuth } from "../hooks/use-auth";
 import { useNavigate } from "react-router-dom";
 import { LOGO_TALLER_360_DATA_URL } from "../utils/logoBase64";
+import { useCompany } from "../context/CompanyContext";
 
 export default function Login() {
+  const { company } = useCompany();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -30,10 +32,10 @@ export default function Login() {
       <div className="w-full max-w-md space-y-6 rounded-2xl bg-white border border-gray-100 p-8 shadow-card">
         <div className="text-center space-y-2">
           <div className="w-20 h-20 mx-auto bg-white rounded-2xl flex items-center justify-center border border-gray-100 shadow-card p-2">
-            <img src={LOGO_TALLER_360_DATA_URL} alt="Taller Integral 360" className="w-full h-full object-contain" />
+            <img src={company.logoDataUrl || LOGO_TALLER_360_DATA_URL} alt={company.commercialName} className="w-full h-full object-contain" />
           </div>
-          <h1 className="text-2xl font-bold text-secondary">Taller Integral 360</h1>
-          <p className="text-sm text-gray-500">Sistema de Control Operativo gRQL</p>
+          <h1 className="text-2xl font-bold text-secondary">{company.commercialName}</h1>
+          <p className="text-sm text-gray-500">{company.legalName}</p>
         </div>
 
         {error && (

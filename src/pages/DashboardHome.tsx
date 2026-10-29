@@ -2,8 +2,10 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { StatsService } from "../services/stats.service";
 import type { DashboardStats } from "../types/entities";
+import { useCompany } from "../context/CompanyContext";
 
 export default function DashboardHome() {
+  const { company } = useCompany();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
@@ -52,10 +54,10 @@ export default function DashboardHome() {
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 relative z-10">
           <div>
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-white/20 text-white mb-3 backdrop-blur-sm">
-              <i className="fas fa-shield-alt"></i> Taller Integral 360 v2.0
+              <i className="fas fa-shield-alt"></i> {company.commercialName} v2.0
             </span>
-            <h2 className="text-3xl lg:text-4xl font-bold">Taller Integral 360 Garage</h2>
-            <p className="text-blue-100 mt-2 text-lg">Urbaez Motors 2030 C.A. - Sistema de Gestión GRQL</p>
+            <h2 className="text-3xl lg:text-4xl font-bold">{company.commercialName}</h2>
+            <p className="text-blue-100 mt-2 text-lg">{company.legalName} • {company.taxIdLabel}: {company.taxId}</p>
           </div>
           <div className="flex items-center gap-3">
             <button

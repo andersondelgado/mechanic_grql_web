@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useCurrency } from '../context/CurrencyContext';
+import { useCompany } from '../context/CompanyContext';
 import { PaymentMethod, SupportedCountry, COUNTRIES, CountryInfo, PaymentMethodType } from '../types/multicurrency';
 import { CountryFlag } from '../components/currency/CountryFlag';
 
 export default function MetodosPago() {
+  const { company } = useCompany();
   const {
     currencies,
     paymentMethods,
@@ -102,7 +104,8 @@ export default function MetodosPago() {
 
   // Copiar datos formateados para WhatsApp / Cliente
   const handleCopyPaymentInfo = (m: PaymentMethod) => {
-    let text = `💳 *DATOS DE PAGO - TALLER 360*\n`;
+    const workshopTitle = (company.commercialName || 'TALLER 360').toUpperCase();
+    let text = `💳 *DATOS DE PAGO - ${workshopTitle}*\n`;
     text += `📌 *Método:* ${m.title} (${m.currency})\n`;
     if (m.bank_name) text += `🏦 *Banco:* ${m.bank_name}\n`;
     if (m.phone) text += `📱 *Teléfono:* ${m.phone}\n`;

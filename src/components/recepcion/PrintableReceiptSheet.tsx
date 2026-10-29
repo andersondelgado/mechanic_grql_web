@@ -2,6 +2,7 @@ import React from 'react';
 import type { VehicleReceipt, ChecklistItem, DamagePoint } from '../../types/entities';
 import { downloadReceiptPdf } from '../../utils/pdfGenerator';
 import { LOGO_TALLER_360_DATA_URL } from '../../utils/logoBase64';
+import { useCompany } from '../../context/CompanyContext';
 
 interface PrintableReceiptSheetProps {
   receipt: VehicleReceipt;
@@ -9,6 +10,7 @@ interface PrintableReceiptSheetProps {
 }
 
 export const PrintableReceiptSheet: React.FC<PrintableReceiptSheetProps> = ({ receipt, onClose }) => {
+  const { company } = useCompany();
   const [downloading, setDownloading] = React.useState(false);
 
   React.useEffect(() => {
@@ -105,17 +107,17 @@ export const PrintableReceiptSheet: React.FC<PrintableReceiptSheetProps> = ({ re
           <div className="border-b-2 border-slate-900 pb-3 flex items-start justify-between">
             <div className="flex items-center gap-4">
               <div className="w-14 h-14 bg-white border border-slate-200 shadow-sm rounded-xl flex items-center justify-center p-1.5 shrink-0">
-                <img src={LOGO_TALLER_360_DATA_URL} alt="Logo Taller 360" className="w-full h-full object-contain" />
+                <img src={company.logoDataUrl || LOGO_TALLER_360_DATA_URL} alt={company.commercialName} className="w-full h-full object-contain" />
               </div>
               <div>
                 <h1 className="text-xl font-black tracking-tight text-slate-900">
-                  TALLER INTEGRAL 360 GARAGE C.A.
+                  {company.documentHeaderName}
                 </h1>
                 <p className="text-xs text-slate-600 font-medium uppercase tracking-wider">
-                  Mecánica General • Latonería y Pintura • Diagnóstico Computarizado
+                  {company.specialties}
                 </p>
                 <p className="text-[11px] text-slate-500">
-                  RIF: J-50123456-7 • Telf: (0212) 555-0360 • Caracas, Venezuela
+                  {company.taxIdLabel}: {company.taxId} • Telf: {company.phone} • {company.address}
                 </p>
               </div>
             </div>
@@ -297,7 +299,7 @@ export const PrintableReceiptSheet: React.FC<PrintableReceiptSheetProps> = ({ re
           </div>
 
           <div className="text-[10px] text-slate-400 text-right">
-            Página 1 de 2 • Taller Integral 360 Garage C.A.
+            Página 1 de 2 • {company.documentHeaderName}
           </div>
         </div>
 
@@ -385,7 +387,7 @@ export const PrintableReceiptSheet: React.FC<PrintableReceiptSheetProps> = ({ re
 
           {/* Legal Acceptance Clause */}
           <div className="text-[9px] text-slate-500 leading-tight border border-slate-200 rounded p-2 bg-slate-50 text-justify">
-            <strong>CLÁUSULA DE CUSTODIA Y CONFORMIDAD:</strong> El cliente autoriza los trabajos mencionados y los desplazamientos necesarios para pruebas mecánicas bajo su cuenta y riesgo. El taller no se hace responsable por pérdidas de objetos de valor o dinero no especificados en este reporte. Todo trabajo adicional no contemplado requerirá previa autorización.
+            <strong>CLÁUSULA DE CUSTODIA Y CONFORMIDAD:</strong> {company.legalClause || 'El cliente autoriza los trabajos mencionados y los desplazamientos necesarios para pruebas mecánicas bajo su cuenta y riesgo.'}
           </div>
 
           {/* Digital Signatures Blocks */}
@@ -405,7 +407,7 @@ export const PrintableReceiptSheet: React.FC<PrintableReceiptSheetProps> = ({ re
               </div>
               <div className="border-t border-slate-400 pt-1">
                 <p className="font-bold text-[11px] text-slate-900">{receipt.owner_name || 'Firma del Cliente / Propietario'}</p>
-                <p className="text-[10px] text-slate-500">{receipt.owner_tax_id ? `C.I. / RIF: ${receipt.owner_tax_id}` : 'Cliente Receptor'}</p>
+                <p className="text-[10px] text-slate-500">{receipt.owner_tax_id ? `C.I. / ${company.taxIdLabel}: ${receipt.owner_tax_id}` : 'Cliente Receptor'}</p>
               </div>
             </div>
 
@@ -424,13 +426,13 @@ export const PrintableReceiptSheet: React.FC<PrintableReceiptSheetProps> = ({ re
               </div>
               <div className="border-t border-slate-400 pt-1">
                 <p className="font-bold text-[11px] text-slate-900">{receipt.receiving_technician || receipt.received_by || 'Técnico Receptor'}</p>
-                <p className="text-[10px] text-slate-500">Por Taller Integral 360 Garage C.A.</p>
+                <p className="text-[10px] text-slate-500">Por {company.documentHeaderName}</p>
               </div>
             </div>
           </div>
 
           <div className="text-[10px] text-slate-400 text-right">
-            Página 2 de 2 • Taller Integral 360 Garage C.A.
+            Página 2 de 2 • {company.documentHeaderName}
           </div>
         </div>
       </div>

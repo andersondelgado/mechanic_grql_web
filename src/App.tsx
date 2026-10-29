@@ -29,13 +29,16 @@ import Reportes from "./pages/Reportes";
 import Backup from "./pages/Backup";
 import Usuarios from "./pages/Usuarios";
 import MetodosPago from "./pages/MetodosPago";
+import ConfiguracionEmpresa from "./pages/ConfiguracionEmpresa";
 import { CurrencyProvider } from "./context/CurrencyContext";
+import { CompanyProvider } from "./context/CompanyContext";
 
 function App() {
   return (
     <AuthProvider>
-      <CurrencyProvider>
-        <Router>
+      <CompanyProvider>
+        <CurrencyProvider>
+          <Router>
           <Routes>
             <Route path="/login" element={<Login />} />
           <Route
@@ -88,12 +91,14 @@ function App() {
             <Route path="reportes" element={<Reportes />} />
             <Route path="backup" element={<Backup />} />
 
-            {/* Seguridad */}
+            {/* Seguridad & Configuración */}
             <Route path="usuarios" element={<Usuarios />} />
+            <Route path="configuracion" element={<ConfiguracionEmpresa />} />
           </Route>
         </Routes>
       </Router>
       </CurrencyProvider>
+      </CompanyProvider>
     </AuthProvider>
   );
 }

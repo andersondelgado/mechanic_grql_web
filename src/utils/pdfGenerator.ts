@@ -1,10 +1,11 @@
 import { LOGO_TALLER_360_BASE64 } from './logoBase64';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import type { VehicleReceipt, ChecklistItem, DamagePoint } from '../types/entities';
-
+import { getStoredCompanySettings } from '../context/CompanyContext';
 
 function base64ToUint8Array(base64: string): Uint8Array {
-  const binaryString = atob(base64.replace(/\s/g, ''));
+  const cleanBase64 = base64.includes(',') ? base64.split(',')[1] : base64;
+  const binaryString = atob(cleanBase64.replace(/\s/g, ''));
   const len = binaryString.length;
   const bytes = new Uint8Array(len);
   for (let i = 0; i < len; i++) {
@@ -13,7 +14,26 @@ function base64ToUint8Array(base64: string): Uint8Array {
   return bytes;
 }
 
+async function embedCompanyLogo(pdfDoc: PDFDocument, logoDataUrl?: string): Promise<any> {
+  const source = logoDataUrl || LOGO_TALLER_360_BASE64;
+  try {
+    const logoBytes = base64ToUint8Array(source);
+    if (source.startsWith('data:image/jpeg') || source.startsWith('data:image/jpg')) {
+      return await pdfDoc.embedJpg(logoBytes);
+    }
+    return await pdfDoc.embedPng(logoBytes);
+  } catch {
+    try {
+      const fallbackBytes = base64ToUint8Array(LOGO_TALLER_360_BASE64);
+      return await pdfDoc.embedPng(fallbackBytes);
+    } catch {
+      return null;
+    }
+  }
+}
+
 export async function downloadReceiptPdf(receipt: VehicleReceipt): Promise<void> {
+  const company = getStoredCompanySettings();
   const pdfDoc = await PDFDocument.create();
   const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -34,14 +54,8 @@ export async function downloadReceiptPdf(receipt: VehicleReceipt): Promise<void>
   const page1 = pdfDoc.addPage([612, 792]);
   const { width, height } = page1.getSize();
 
-  // Embed Oficial Logo from Base64
-  let embeddedLogo: any = null;
-  try {
-    const logoBytes = base64ToUint8Array(LOGO_TALLER_360_BASE64);
-    embeddedLogo = await pdfDoc.embedPng(logoBytes);
-  } catch (logoErr) {
-    console.warn('No se pudo incrustar el logo en el PDF:', logoErr);
-  }
+  // Embed Oficial Logo
+  const embeddedLogo = await embedCompanyLogo(pdfDoc, company.logoDataUrl);
 
   // Banner Superior
   page1.drawRectangle({
@@ -71,7 +85,7 @@ export async function downloadReceiptPdf(receipt: VehicleReceipt): Promise<void>
 
   const textStartX = embeddedLogo ? 100 : 45;
 
-  page1.drawText('TALLER INTEGRAL 360 GARAGE C.A.', {
+  page1.drawText((company.documentHeaderName || 'TALLER INTEGRAL 360 GARAGE C.A.').substring(0, 50), {
     x: textStartX,
     y: height - 48,
     size: 13,
@@ -79,7 +93,7 @@ export async function downloadReceiptPdf(receipt: VehicleReceipt): Promise<void>
     color: rgb(1, 1, 1),
   });
 
-  page1.drawText('MECÁNICA GENERAL • LATONERÍA Y PINTURA • DIAGNÓSTICO', {
+  page1.drawText((company.specialties || 'MECÁNICA GENERAL • LATONERÍA Y PINTURA • DIAGNÓSTICO').toUpperCase().substring(0, 75), {
     x: textStartX,
     y: height - 64,
     size: 7.5,
@@ -87,7 +101,7 @@ export async function downloadReceiptPdf(receipt: VehicleReceipt): Promise<void>
     color: rgb(0.7, 0.8, 0.9),
   });
 
-  page1.drawText('RIF: J-50123456-7 • Telf: (0212) 555-0360 • Caracas, Venezuela', {
+  page1.drawText(`${company.taxIdLabel}: ${company.taxId} • Telf: ${company.phone} • ${company.address}`.substring(0, 85), {
     x: textStartX,
     y: height - 76,
     size: 7,
@@ -328,9 +342,9 @@ export async function downloadReceiptPdf(receipt: VehicleReceipt): Promise<void>
   }
 
   page1.drawLine({ start: { x: 335, y: 95 }, end: { x: 565, y: 95 }, color: rgb(0.7, 0.7, 0.7), thickness: 1 });
-  page1.drawText(receipt.received_by || receipt.receiving_technician || 'Taller Integral 360 Garage', { x: 335, y: 82, size: 8, font: helvetica });
+  page1.drawText(receipt.received_by || receipt.receiving_technician || company.commercialName, { x: 335, y: 82, size: 8, font: helvetica });
 
-  page1.drawText('Página 1 de 2 • Taller Integral 360 Garage C.A.', { x: width - 240, y: 40, size: 7, font: helvetica, color: rgb(0.5, 0.5, 0.5) });
+  page1.drawText(`Página 1 de 2 • ${company.documentHeaderName}`.substring(0, 65), { x: width - 250, y: 40, size: 7, font: helvetica, color: rgb(0.5, 0.5, 0.5) });
 
   // ─── PÁGINA 2: Inventario 77 Puntos y Servicios Autorizados ──────────
   const page2 = pdfDoc.addPage([612, 792]);
@@ -378,7 +392,7 @@ export async function downloadReceiptPdf(receipt: VehicleReceipt): Promise<void>
   const auth = (receipt.authorized_services || receipt.work_performed || 'Inspección diagnóstica inicial autorizada.').substring(0, 300);
   page2.drawText(auth, { x: 40, y: 172, size: 8, font: helvetica, maxWidth: width - 80 });
 
-  page2.drawText('CLÁUSULA LEGAL: El cliente autoriza los trabajos indicados y las pruebas de manejo correspondientes.', {
+  page2.drawText(`CLÁUSULA LEGAL: ${(company.legalClause || 'El cliente autoriza los trabajos indicados y las pruebas de manejo correspondientes.').substring(0, 120)}`, {
     x: 40,
     y: 115,
     size: 6.5,
@@ -386,7 +400,7 @@ export async function downloadReceiptPdf(receipt: VehicleReceipt): Promise<void>
     color: rgb(0.4, 0.4, 0.4),
   });
 
-  page2.drawText('Página 2 de 2 • Taller Integral 360 Garage C.A.', { x: width - 240, y: 40, size: 7, font: helvetica, color: rgb(0.5, 0.5, 0.5) });
+  page2.drawText(`Página 2 de 2 • ${company.documentHeaderName}`.substring(0, 65), { x: width - 250, y: 40, size: 7, font: helvetica, color: rgb(0.5, 0.5, 0.5) });
 
   const pdfBytes = await pdfDoc.save();
 
@@ -420,6 +434,7 @@ function cleanLatin1(text: any): string {
 
 export async function downloadInspectionReportPdf(params: InspectionReportPdfParams): Promise<void> {
   const { peritaje, vehicle, client, analysis, inspector } = params;
+  const company = getStoredCompanySettings();
   const pdfDoc = await PDFDocument.create();
   const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -433,14 +448,8 @@ export async function downloadInspectionReportPdf(params: InspectionReportPdfPar
   const page = pdfDoc.addPage([612, 792]);
   const { width, height } = page.getSize();
 
-  // Embed Oficial Logo from Base64
-  let embeddedLogo: any = null;
-  try {
-    const logoBytes = base64ToUint8Array(LOGO_TALLER_360_BASE64);
-    embeddedLogo = await pdfDoc.embedPng(logoBytes);
-  } catch (logoErr) {
-    console.warn('No se pudo incrustar el logo en el informe de peritaje:', logoErr);
-  }
+  // Embed Oficial Logo
+  const embeddedLogo = await embedCompanyLogo(pdfDoc, company.logoDataUrl);
 
   // 1. Banner Superior
   page.drawRectangle({
@@ -469,7 +478,7 @@ export async function downloadInspectionReportPdf(params: InspectionReportPdfPar
 
   const textStartX = embeddedLogo ? 100 : 45;
 
-  page.drawText('TALLER INTEGRAL 360 GARAGE C.A.', {
+  page.drawText(cleanLatin1(company.documentHeaderName || 'TALLER INTEGRAL 360 GARAGE C.A.').substring(0, 50), {
     x: textStartX,
     y: height - 48,
     size: 13,
@@ -477,7 +486,7 @@ export async function downloadInspectionReportPdf(params: InspectionReportPdfPar
     color: rgb(1, 1, 1),
   });
 
-  page.drawText('PERITAJE TÉCNICO VEHICULAR • EVALUACIÓN CON IA GEMINI MULTIMODAL', {
+  page.drawText(cleanLatin1(company.specialties || 'PERITAJE TÉCNICO VEHICULAR • EVALUACIÓN CON IA GEMINI MULTIMODAL').toUpperCase().substring(0, 75), {
     x: textStartX,
     y: height - 64,
     size: 7.5,
@@ -485,7 +494,7 @@ export async function downloadInspectionReportPdf(params: InspectionReportPdfPar
     color: rgb(0.7, 0.8, 0.9),
   });
 
-  page.drawText('RIF: J-50123456-7 • Telf: (0212) 555-0360 • Caracas, Venezuela', {
+  page.drawText(cleanLatin1(`${company.taxIdLabel}: ${company.taxId} • Telf: ${company.phone} • ${company.address}`).substring(0, 85), {
     x: textStartX,
     y: height - 76,
     size: 7,
@@ -733,7 +742,7 @@ export async function downloadInspectionReportPdf(params: InspectionReportPdfPar
   page.drawText('Firma de Conformidad del Cliente', { x: 330, y: 95, size: 6.5, font: helvetica, color: rgb(0.5, 0.5, 0.5) });
 
   // 7. Pie de Página
-  page.drawText('Documento de diagnóstico asistido por IA generativa • Taller Integral 360 Garage C.A.', {
+  page.drawText(cleanLatin1(`Documento de diagnóstico asistido por IA generativa • ${company.documentHeaderName}`).substring(0, 95), {
     x: 45,
     y: 50,
     size: 7,
